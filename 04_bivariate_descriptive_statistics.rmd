@@ -1,0 +1,150 @@
+---
+title: "Bivariate descriptive statistics"
+author: "IBRAHIM KASSOUM Habibou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error=FALSE)
+```
+
+
+
+```{r}
+rm(list=ls())
+```
+
+## Importing library
+
+```{r Package needed, results = "hide"}
+
+
+## Importing library
+### List of required packages
+required_packages <- c("tidyverse","janitor" ,"readr","dplyr", "flextable","gtsummary","ggthemes")
+
+# Check if packages are installed
+missing_packages <- setdiff(required_packages, installed.packages()[,"Package"])
+
+### Install missing packages
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+
+### Load all packages
+lapply(required_packages, library, character.only = TRUE)
+
+```
+
+
+```{r}
+# Read excel files data for R1 and R2
+r1_data <- readxl::read_excel("output/data/r1_underfive.xlsx")
+
+r2_data <- readxl::read_excel("output/data/r2_underfive.xlsx")
+
+
+```
+
+
+# Study Variables
+
+## Socio-demographic variables
+
+### Kid Sex/gender
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = TRUE}
+
+# 
+# r1_data %>% 
+#   
+#   # Selecting relevant variables
+#   select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh, affected_upazila) %>% 
+#   #rename(affected_upazila=Affected_district) %>% 
+#    mutate(affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected district", "Affected district"), ordered = TRUE)) %>% 
+#   # Generate a summary table using "tbl_summary" for the specified columns
+#   tbl_summary(
+#     by = affected_upazila, 
+#      label = list(
+#        weight_kg ~ "weight (kg)",
+#        height_cm ~ "height (cm)",
+#        hhm_sex ~ "Sex",
+#        hhm_age ~ "age (in year)",
+#        relation_hhh ~ "relation with the head",
+#        if_not_measured_why ~ "Why missing"
+#        
+#     ),
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})"
+#     ),
+#     missing_text = "(Missing)",
+#     digits = everything() ~ c(2,2),
+#     missing = "always"
+#   ) %>% 
+#     modify_caption("**R1**") %>%
+#   # Modify the table header to provide a descriptive label
+#   modify_header(label ~ "Affected Upazila") %>%
+#   add_overall() %>%
+#   add_n()%>% 
+#   # Add difference statistics to the table
+#   add_difference() 
+
+## define custom test
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+
+r1_data %>% 
+
+  # Selecting relevant variables
+   select(weight_kg,height_cm,hhm_sex,hhm_age,affected_upazila) %>% 
+  mutate(sample='round 1') %>% 
+  
+  plyr::rbind.fill(
+    #For the sibling dataset
+    r2_data %>%
+select(weight_kg,height_cm,hhm_sex,hhm_age, affected_upazila) %>% 
+  #rename(affected_upazila=Affected_district) %>% 
+   mutate( 
+     sample='round 2',
+     affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected district", "Affected district"), ordered = TRUE))) %>% 
+
+  tbl_strata(
+    strata = sample,
+    .tbl_fun =
+      ~ .x %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+      tbl_summary(
+    by = affected_upazila, 
+     label = list(
+       weight_kg ~ "weight (kg)",
+       height_cm ~ "height (cm)",
+       hhm_sex ~ "Sex",
+       hhm_age ~ "age (in year)"
+       
+    ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(2,2),
+    missing = "ifany"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ "Characteristics of children"),
+    # Add difference statistics to the table
+    #add_difference(),
+    .header = "**{strata}**, N = {n}") #%>%
+  #as_gt() %>%
+  #gt::gtsave('desc_table_summary.tex', path = here::here())
+
+```

@@ -1,0 +1,306 @@
+---
+title: "Tabulation of Covariates and Outcomes"
+author: "IBRAHIM KASSOUM Habibou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include = TRUE, warning=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+# library(officedown)
+# library(officer)
+
+# fp <- fp_par(
+#   text.align = "center", 
+#   padding.bottom = 20, padding.top = 120, 
+#   border.bottom = fp_border())
+
+#ft <- fp_text(shading.color='#EFEFEF', bold = F)
+```
+
+# Table of content
+
+<!---BLOCK_TOC--->
+
+\newpage
+
+
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+# Clear the current workspace by removing all objects.
+# This is useful to start with a clean slate and avoid potential conflicts or unexpected behavior.
+rm(list=ls())
+```
+
+## Importing library
+```{r Package needed, results = "hide", include = TRUE, warning=FALSE, echo = FALSE}
+
+
+## Importing library
+### List of required packages
+required_packages <- c("tidyverse" ,"readxl","dplyr","gtsummary","janitor")
+
+# Check if packages are installed
+missing_packages <- setdiff(required_packages, installed.packages()[,"Package"])
+
+### Install missing packages
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+
+### Load all packages
+lapply(required_packages, library, character.only = TRUE)
+
+```
+
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+# We set the theme to compact to ensure table fit the landscape page
+# This theme will apply to all the other tables in this Rmd
+set_gtsummary_theme(theme_gtsummary_compact())
+```
+
+
+
+## Importing the datasets an checking for duplicated row
+
+### Importing the shapefile data
+
+```{r, results='hide', include = TRUE, warning=FALSE, echo = FALSE}
+# Read shapefile data for 2002 and 2013
+
+```
+
+### Importing the census datasets 
+
+**For the 2002 census data**
+
+```{r, results='hide', include = TRUE, warning=FALSE, echo = FALSE}
+
+# Read and check for duplicated rows in the "df_interest" dataset
+
+df_interest <- readxl::read_excel(paste0(here::here(),"/output/data/df_interest.xlsx"))
+df_interest %>% janitor::get_dupes()
+#df_interest %>% janitor::get_dupes(HHID)
+
+```
+
+
+<!-- **For the 2013 census dataset** -->
+
+<!-- ```{r, include = FALSE, warning=FALSE, echo = FALSE} -->
+
+<!-- # Read and check for duplicated rows in the "menage_2013" dataset -->
+<!-- menage_2013 <- haven::read_sav(paste0(here::here(),"/output/output_data/menage_2013.sav")) -->
+<!-- menage_2013 %>% janitor::get_dupes()  -->
+<!-- menage_2013 %>% janitor::get_dupes(ID_MENAGE) -->
+<!-- ``` -->
+
+
+# Study Variables
+
+## Socio-demographic variables
+
+### Kid Sex/gender
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+
+df_interest %>% 
+  
+  # Selecting relevant variables
+  select(exposed_distr_1, KIDSEX) %>% 
+  
+  # Generate a summary table using "tbl_summary" for the specified columns
+  tbl_summary(
+    by = exposed_distr_1, 
+     label = list(
+       KIDSEX ~ "Sex of Kid"
+    ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(2,2),
+    missing = "always"
+  ) %>% 
+    modify_caption("**Exposition is the per capita number of Fully Damaged Households (above the fourth quantile)**") %>%
+  # Modify the table header to provide a descriptive label
+  modify_header(label ~ "Exposed ") %>%
+  add_overall() %>%
+  add_n()%>% 
+  # Add difference statistics to the table
+  add_difference() 
+```
+
+
+
+
+### Age
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+#For babies under one year old, write “0” years. For people aged 98 and over, the instruction was to write 98 for age.
+
+df_interest %>% 
+  
+  # Selecting relevant variables
+  select(exposed_distr_1, KIDAGEMO) %>% 
+  mutate(KIDAGEMO = as.numeric(KIDAGEMO)) %>% 
+  # Generate a summary table using "tbl_summary" for the specified columns
+  tbl_summary(
+    by = exposed_distr_1, 
+    
+    type = c(KIDAGEMO~"continuous"),
+    
+     label = list(
+       KIDAGEMO ~ "Age of Kid in month"
+    ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(2,2),
+    missing = "always"
+  ) %>% 
+  
+  # Modify the table header to provide a descriptive label
+  modify_header(label ~ "Exposed") %>%
+  add_overall() %>%
+  add_n()%>% 
+  # Add difference statistics to the table
+  add_difference() 
+
+```
+
+
+
+### Birth moment
+
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+
+
+df_interest %>% 
+  
+  # Selecting relevant variables
+  select(exposed_distr_1, born_after) %>% 
+  # Generate a summary table using "tbl_summary" for the specified columns
+  tbl_summary(
+    by = exposed_distr_1, 
+    
+    type = c(born_after~"dichotomous"),
+    
+     label = list(
+       born_after ~ "Born after 2009"
+    ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(2,2),
+    missing = "always"
+  ) %>% 
+  
+  # Modify the table header to provide a descriptive label
+  modify_header(label ~ "Exposed") %>%
+  add_overall() %>%
+  add_n()%>% 
+  # Add difference statistics to the table
+  add_difference() 
+
+```
+
+### Outcomes variables
+
+#### HAZ
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+df_interest %>% 
+  
+  # Selecting relevant variables
+  select(exposed_distr_1, born_after, KIDSEX ,HWHAZWHO) %>% 
+  
+  tbl_strata(
+      strata = c("exposed_distr_1","born_after"),
+      
+  # Generate a summary table using "tbl_summary" for the specified columns
+      .tbl_fun =
+            ~ .x %>%
+      tbl_summary(
+        by = c("KIDSEX"), 
+        
+        type = c(HWHAZWHO~"continuous"),
+        
+         label = list(
+           HWHAZWHO ~ "HAZ"
+        ),
+        statistic = list(
+          all_categorical() ~ "{n} ({p}%)",
+          all_continuous() ~ "{mean} ({sd})"
+        ),
+        missing_text = "(Missing)",
+        digits = everything() ~ c(4,4),
+        missing = "always"
+      ) %>% 
+      
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ "Exposed") %>%
+      #add_overall() %>%
+      #add_n()%>% 
+      # Add difference statistics to the table
+      add_difference() %>% 
+      modify_column_hide(ci))
+
+```
+#### HAZ
+```{r, include = TRUE, warning=FALSE, echo = FALSE}
+df_interest %>% 
+    
+    # Selecting relevant variables
+    select(exposed_distr_bis_3, born_after, KIDSEX ,HWWAZWHO, YEAR, state_district) %>% 
+    group_by(state_district,exposed_distr_bis_3, born_after, YEAR, KIDSEX) %>% 
+    summarise(moyenne = round(mean(HWWAZWHO, na.rm = TRUE), 6)) %>% 
+    ungroup() %>%  
+    pivot_wider(names_from = KIDSEX, values_from = moyenne) %>% 
+    mutate(gap = Male - Female, born_after=as.factor(born_after), exposed_distr_bis_3=as.factor(exposed_distr_bis_3)) %>% 
+    tbl_continuous(
+      variable = gap,
+      statistic = ~"{mean}",
+      include = exposed_distr_bis_3,
+      by = born_after,
+      digits = ~5
+  )
+  # tbl_strata(
+  #     strata = c("exposed_distr_bis_3","born_after"),
+  #     
+  # # Generate a summary table using "tbl_summary" for the specified columns
+  #     .tbl_fun =
+  #           ~ .x %>%
+  #     tbl_summary(
+  #       by = c("KIDSEX"), 
+  #       
+  #       type = c(HWWAZWHO~"continuous"),
+  #       
+  #        label = list(
+  #          HWWAZWHO ~ "WAZ"
+  #       ),
+  #       statistic = list(
+  #         all_categorical() ~ "{n} ({p}%)",
+  #         all_continuous() ~ "{mean} ({sd})"
+  #       ),
+  #       missing_text = "(Missing)",
+  #       digits = everything() ~ c(4,4),
+  #       missing = "always"
+  #     ) %>% 
+  #     
+  #     # Modify the table header to provide a descriptive label
+  #     modify_header(label ~ "Exposed") %>%
+  #     #add_overall() %>%
+  #     #add_n()%>% 
+  #     # Add difference statistics to the table
+  #     add_difference() %>% 
+  #     modify_column_hide(ci))
+
+```
+```{r}
+df_interest %>% group_by(IDHSHID, KIDSEX) %>% summarise(mean_haz = mean(HWHAZWHO, na.rm=TRUE))
+```

@@ -3,3 +3,5 @@
 /output/data
 /paper
 /presentation slides
+*.xlsx
+*.docx
