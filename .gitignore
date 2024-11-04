@@ -3,5 +3,7 @@
 /output/data
 /paper
 /presentation slides
+/virtual_env
 *.xlsx
 *.docx
+.Rproj.user
