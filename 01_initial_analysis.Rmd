@@ -118,7 +118,7 @@ The split households are on average:
 df_r1_hh %>% 
   mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
   # Selecting relevant variables
-   select(hh_id, hh_split_r2_r3,hh_split_r3,hh_split_r2,hh_size,affected_upazila,hh_head_religion,hh_ethnic_group) %>% 
+   select(hh_id, hh_split_r2_r3,hh_split_r3,hh_split_r2,hh_split_btwn_r2_r3,affected_upazila,hh_size,hh_head_religion,hh_ethnic_group) %>% 
   left_join(
     df_r1_anthr1 %>% 
       filter(relation_hhh=="primary respondent") %>% 
@@ -146,8 +146,9 @@ mutate(
      label = list(
        mean_speed ~ "Mean wind speed (in m/s)",
        mean_time ~ "Mean wind duration (in hours)",
-       hh_split_r3 ~ "Split btwn R2 and R3",
+       hh_split_r3 ~ "Split surveyed hh. in R3",
        hh_split_r2 ~ "Split btwn R1 and R2",
+       hh_split_btwn_r2_r3 ~ "Split btwn R2 and R3",
        high_exposed ~ "Highly exposed union (Yes=1, No=0)",
        exposed_at_least_zero ~ "Exposed union (Yes=1, No=0)",
        hh_size ~ "Hh. size",
@@ -175,6 +176,7 @@ mutate(
       high_exposed ~ "dichotomous",
       hh_split_r3 ~ "dichotomous",
       hh_split_r2 ~ "dichotomous",
+      hh_split_btwn_r2_r3 ~ "dichotomous",
       mean_speed ~ "continuous" ,
       mean_time ~ "continuous" ,
       exposed_at_least_zero ~ "dichotomous",
@@ -200,6 +202,21 @@ mutate(
   modify_header(label ~ "") %>% 
   add_overall(last=TRUE)
 ```
+* For Hh who split between R1 and R2:
+184 households split between R1 and R2 to 396 households hence on average of 2.15 households.
+
+Size  * Nbr groups
+2       160
+3       20
+4       4
+
+* For Hh who split between R1 and R2:
+There is in total 427 'child household' who splitted between R1 and R3 and was surveyed in R3 a for a distinct 285 household in R1 
+
+Which represent a total of 469 (184+285) the remaining 20 come from household who first splitted a R2 and splitted againt in R3 (with two digits in R3).
+
+
+#### Link between splitted at least one and hh. characteristics at baseline
 ```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
 
 df_reg = df_r1_hh %>% 
@@ -240,18 +257,65 @@ re5 <- felm(hh_split_r2_r3 ~ mean_speed + hhm_sex + hhm_age+ hh_size +  marital_
 
 
 
-stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
 se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
 keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed", "mean_time", "affected_upazila","high_exposed","exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
 
-# ,
-#           
-#            covariate.labels = c("Hh. head sex", "Hh. head age","Hh. size", "Hh. head mrtl stts", "Hh. head ltrc" , "Hh. head edctn","Hh. head rlgn","Hh. head ethnc",
-# "Affected upazila", "Hh. nbr fml" , "Hh. nbr undrfv" , "Hh. nbr yng child (5-10)" , "Hh. nbr tngr (10-20)", "Hh. nbr adlts (20-65)", "Hh. nbr female undrfv","Hh. fml yng child (5-10)", "Hh. fml tngr (10-20)","Hh. fml adlts (20-65)"),
 
 ```
 
 
+#### Link between splitted after the cyclone and hh. characteristics at baseline
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_btwn_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_btwn_r2_r3,hh_size,affected_upazila,hh_head_religion,hh_ethnic_group, mean_speed, mean_time) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed,exposed_at_least_zero)) %>% 
+mutate(
+
+  affected_upazila = factor(affected_upazila, levels = c("0", "1")),
+  high_exposed = factor(high_exposed, levels = c("0", "1")),
+  exposed_at_least_zero = factor(exposed_at_least_zero, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_btwn_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_btwn_r2_r3 ~ affected_upazila + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_btwn_r2_r3 ~ exposed_at_least_zero + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_btwn_r2_r3 ~ high_exposed + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_btwn_r2_r3 ~ mean_time + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_btwn_r2_r3 ~ mean_speed + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed", "mean_time", "affected_upazila","high_exposed","exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+
+#### 
 ```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
 df_r1_hh %>% 
   mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
@@ -290,6 +354,9 @@ In the following, I remove the split households (from the initial 6503 household
 ### Attrition
 
 Interestingly, some households that migrated in R2 were found by enumerators and surveyed in R3: 65 among the 234 households who migrated between R1 and R2, around 27.78 percent.
+
+#### Full Attrition
+
 
 My attrition is defined as the *households that were not surveyed in R3 (after the disaster)* because of:
 
@@ -402,13 +469,15 @@ df_r1_hh %>%
   # Selecting relevant variables
    select(hh_id,attrition,hh_size,affected_upazila,hh_head_religion,hh_ethnic_group) %>% 
   
-mutate(affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+mutate(affected_upazila = factor(affected_upazila, levels = c("0", "1")),
        attrition = factor(attrition, levels = c("0", "1"), labels = c("Hh. doesn't attrited", "Hh. attrited"), ordered = TRUE)) %>%
   left_join(
     df_r1_anthr1 %>% 
       filter(relation_hhh=="primary respondent") %>% 
-      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+      select(hh_id,  mean_speed, mean_time, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
 mutate(
+         mean_speed = as.numeric(mean_speed),
+         mean_time = as.numeric(mean_time),
          nbr_female = as.numeric(nbr_female),
          nbr_underfive = as.numeric(nbr_underfive),
          nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
@@ -426,6 +495,8 @@ mutate(
     tbl_summary(
     by = attrition, 
      label = list(
+       mean_speed ~ "Mean wind speed (in m/s)",
+       mean_time ~ "Mean wind duration (in hours)",
        hh_size ~ "Hh. size",
        hh_head_religion ~ "Hh. head rlgn",
        hh_ethnic_group  ~ "Hh. head ethnc",
@@ -447,6 +518,7 @@ mutate(
        nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
     
     type = list(
+      affected_upazila ~ "dichotomous",
        nbr_female ~ "continuous" , 
        nbr_underfive ~ "continuous" , 
        nbr_yngchldrn_5_10 ~ "continuous" , 
@@ -482,7 +554,7 @@ df_reg = df_r1_hh %>%
   left_join(
     df_r1_anthr1 %>% 
       filter(relation_hhh=="primary respondent") %>% 
-      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed, exposed_at_least_zero)) %>% 
+      select(mean_speed, mean_time, hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed, exposed_at_least_zero)) %>% 
 mutate(
   high_exposed = factor(high_exposed, levels = c("0", "1")),
   exposed_at_least_zero = factor(exposed_at_least_zero, levels = c("0", "1")),
@@ -498,20 +570,24 @@ mutate(
          nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
   select(-c(hh_id))
 
-#stargazer(regsplit,  type = "text", title = "Split and household characteristics")
+re0 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
 
-reg_1 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + affected_upazila + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+re1 <- felm(attrition ~ affected_upazila + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
 
-reg_2 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + high_exposed + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+re2 <- felm(attrition ~ exposed_at_least_zero + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
 
-reg_3 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + exposed_at_least_zero + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+re3 <- felm(attrition ~ high_exposed + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_time + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(attrition ~ mean_speed + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
 
 
-stargazer(reg_1, reg_2, reg_3, type = "text", title = "Attrited hh. characteristics", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
-          se.position = "below",notes.align = "l",table.placement = "H",header = F,
-          column.labels = c("Binary for splitted hh."),
-          
-          keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "affected_upazila","high_exposed","exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed", "mean_time", "affected_upazila","high_exposed","exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
 
 
 ```
