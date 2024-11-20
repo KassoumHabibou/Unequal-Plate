@@ -55,7 +55,7 @@ library(Statamarkdown)
 
 
 ## Set working directory
-cd "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2"
+cd "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate"
 capture mkdir ".\input\zanthro"
 cd ".\input\zanthro"
 net get dm0004_1, from(http://www.stata-journal.com/software/sj13-2/)
@@ -65,7 +65,7 @@ net get dm0004_1, from(http://www.stata-journal.com/software/sj13-2/)
 ########################################################################################################################################################
 
 ### Importing the file 'df_global'
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\df_global.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -73,14 +73,15 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\df_global.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global.xlsx", firstrow(variables) replace
+
 
 ########################################################################################################################################################
 ########################################## df_global_corrected ###################################################################################################
 ########################################################################################################################################################
 
 ### Importing the file 'df_global_corrected'
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\df_global_corrected.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global_corrected.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -88,7 +89,7 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\df_global_corrected.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global_corrected.xlsx", firstrow(variables) replace
 
 
 ########################################################################################################################################################
@@ -96,7 +97,7 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\ou
 ########################################################################################################################################################
 ## For underfive household member
 ### Importing the file 'r1' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r1_underfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -104,11 +105,11 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r1_underfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_underfive.xlsx", firstrow(variables) replace
 
 ## For overfive household member
 ### Importing the file 'r1' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r1_overfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -116,7 +117,7 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r1_overfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_overfive.xlsx", firstrow(variables) replace
 
 
 ########################################################################################################################################################
@@ -124,7 +125,7 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\ou
 ########################################################################################################################################################
 ## For underfive household member
 ### Importing the file 'r2' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r2_underfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(age_month) gender(hhm_sex) gencode(m=male, f=female) ageunit(month)
@@ -132,11 +133,11 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(age_month) gender(hhm_sex) gencod
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(age_month) gender(hhm_sex) gencode(m=male, f=female) ageunit(month)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r2_underfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_underfive.xlsx", firstrow(variables) replace
 
 ## For overfive household member
 ### Importing the file 'r1' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r2_overfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -144,7 +145,7 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r2_overfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_overfive.xlsx", firstrow(variables) replace
 
 
 
@@ -153,7 +154,7 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\ou
 ########################################################################################################################################################
 ## For underfive household member
 ### Importing the file 'r1' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r3_underfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -161,11 +162,11 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r3_underfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_underfive.xlsx", firstrow(variables) replace
 
 ## For overfive household member
 ### Importing the file 'r1' data
-import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r3_overfive.xlsx", sheet("Sheet1") firstrow clear
+import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
 egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
@@ -173,8 +174,10 @@ egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(
 egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
 
 ### Exporting results
-export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\PhD-Chapter-2\output\data\r3_overfive.xlsx", firstrow(variables) replace
+export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_overfive.xlsx", firstrow(variables) replace
+
 
 
 
 ```
+
