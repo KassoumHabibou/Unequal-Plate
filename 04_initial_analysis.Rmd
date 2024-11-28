@@ -1,0 +1,3671 @@
+---
+title: "Descriptive statistics"
+author: "IBRAHIM KASSOUM Habibou"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#  officedown::rdocx_document:
+#    mapstyles:
+#      Normal: ['First Paragraph']
+
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error=FALSE)
+rm(list=ls())
+```
+
+
+
+## Importing library
+
+```{r Package needed, results = "hide", include = FALSE, warning=FALSE, echo = TRUE}
+
+
+## Importing library
+### List of required packages
+required_packages <- c("tidyverse","janitor" ,"readr","dplyr", "tidyverse","readxl",
+                       "flextable","gtsummary","ggthemes", "lfe","stargazer","devtools")
+
+# Check if packages are installed
+missing_packages <- setdiff(required_packages, installed.packages()[,"Package"])
+
+### Install missing packages
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+
+### Load all packages
+lapply(required_packages, library, character.only = TRUE)
+
+
+# if not already installed
+#install.packages('devtools', repos = 'http://cran.us.r-project.org') 
+
+# note: "V" is capitalized
+devtools::install_github('xuyiqing/panelView') 
+#devtools::install_github("hemken/Statamarkdown")
+```
+
+
+```{r, results='hide', include = FALSE, warning=FALSE, echo = FALSE}
+# Read excel files data for the r1, r2 and r3
+
+## For r1
+df_r1_hh <- readxl::read_excel("output/data/r1_hh.xlsx")
+df_r1_anthr1 <- readxl::read_excel("output/data/r1_overfive.xlsx")
+df_r1_anthr2 <- readxl::read_excel("output/data/r1_underfive.xlsx")
+
+## For r2
+df_r2_hh <- readxl::read_excel("output/data/r2_hh.xlsx")
+df_r2_anthr1 <- readxl::read_excel("output/data/r2_overfive.xlsx")
+df_r2_anthr2 <- readxl::read_excel("output/data/r2_underfive.xlsx")
+
+## For r3
+df_r3_hh <- readxl::read_excel("output/data/r3_hh.xlsx")
+df_r3_anthr1 <- readxl::read_excel("output/data/r3_overfive.xlsx")
+df_r3_anthr2 <- readxl::read_excel("output/data/r3_underfive.xlsx")
+
+```
+
+```{r, results='hide', include = FALSE, warning=FALSE, echo = FALSE}
+
+
+## Final dataset
+# df_global_corrected <- readxl::read_excel("output/data/df_global_corrected.xlsx", 
+#     col_types = c("skip", "text", "text", 
+#         "numeric", "numeric", "text", "text", 
+#         "text", "text", "numeric", "text", 
+#         "text", "text", "text", "text", "text", 
+#         "text", "text", "text", "numeric", 
+#         "numeric", "numeric", "numeric"))
+# 
+
+df_global <- read_excel("output/data/df_global.xlsx")
+
+df_global_corrected <- read_excel("output/data/df_global_corrected.xlsx")
+```
+
+```{r, results='hide', include = FALSE, warning=FALSE, echo = FALSE}
+## define custom test
+fisher.test.simulate.p.values <- function(data, variable, by, ...) {
+  result <- list()
+  test_results <- stats::fisher.test(data[[variable]], data[[by]], simulate.p.value = TRUE)
+  result$p <- test_results$p.value
+  result$test <- test_results$method
+  result
+}
+```
+
+
+## Analysis of missing values and migration or attrition by region and migration.
+
+
+### Splitted hh
+The split households are on average:
+
+* Bigger in terms of size.
+* Less likely to be female-headed.
+* Have older heads.
+* Have less educated heads.
+* Have more female members.
+* Have more children under five.
+* Have more teenagers.
+* Have more adults.
+* Have more female adults and teenagers.
+* Have more teenage adults.
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_r2_r3,hh_split_r3,hh_split_r2,hh_split_btwn_r2_r3,affected_upazila_all,     affected_komen,affected_roanu,affected_mora,hh_size,high_exposed_komen,exposed_at_least_zero_komen,mean_speed_komen,mean_time_komen,high_exposed_roanu,exposed_at_least_zero_roanu,mean_speed_roanu,mean_time_roanu,high_exposed_mora,exposed_at_least_zero_mora,mean_speed_mora,mean_time_mora,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  hh_split_r2_r3 = factor(hh_split_r2_r3, levels = c("0", "1"), labels = c("Don't split", "Split"), ordered = TRUE),
+  affected_upazila_all = factor(affected_upazila_all, levels = c("0", "1")),
+  
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+  mean_speed_komen = as.numeric(mean_speed_komen),
+  mean_time_komen = as.numeric(mean_time_komen),
+  
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+  mean_speed_roanu = as.numeric(mean_speed_roanu),
+  mean_time_roanu = as.numeric(mean_time_roanu),
+  
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+  mean_speed_mora = as.numeric(mean_speed_mora),
+  mean_time_mora = as.numeric(mean_time_mora),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = hh_split_r2_r3, 
+     label = list(
+       mean_speed_komen ~ "Mean wind speed (in m/s) komen",
+       mean_time_komen ~ "Mean wind duration (in hours) komen",
+       mean_speed_roanu ~ "Mean wind speed (in m/s) roanu",
+       mean_time_roanu ~ "Mean wind duration (in hours) roanu",
+       mean_speed_mora ~ "Mean wind speed (in m/s) mora",
+       mean_time_mora ~ "Mean wind duration (in hours) mora",
+       hh_split_r3 ~ "Split surveyed hh. in R3",
+       hh_split_r2 ~ "Split btwn R1 and R2",
+       hh_split_btwn_r2_r3 ~ "Split btwn R2 and R3",
+       
+       high_exposed_komen ~ "Highly exposed union komen (Yes=1, No=0)",
+       exposed_at_least_zero_komen ~ "Exposed union komen (Yes=1, No=0)",
+       
+       high_exposed_roanu ~ "Highly exposed union roanu (Yes=1, No=0)",
+       exposed_at_least_zero_roanu ~ "Exposed union roanu (Yes=1, No=0)",
+       
+       high_exposed_mora ~ "Highly exposed union mora (Yes=1, No=0)",
+       exposed_at_least_zero_mora ~ "Exposed union mora (Yes=1, No=0)",
+       
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       affected_upazila_all ~ "Affected upazila all (Yes=1, No=0)",
+       affected_komen ~ "Affected upazila komen (Yes=1, No=0)",
+       affected_roanu ~ "Affected upazila roanu (Yes=1, No=0)",
+       affected_mora ~ "Affected upazila mora (Yes=1, No=0)",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      affected_upazila_all ~ "dichotomous",
+      high_exposed_komen ~ "dichotomous",
+      mean_speed_komen ~ "continuous" ,
+      mean_time_komen ~ "continuous" ,
+      exposed_at_least_zero_komen ~ "dichotomous",
+      
+      high_exposed_roanu ~ "dichotomous",
+      mean_speed_roanu ~ "continuous" ,
+      mean_time_roanu ~ "continuous" ,
+      exposed_at_least_zero_roanu ~ "dichotomous",
+      
+            
+      high_exposed_mora ~ "dichotomous",
+      mean_speed_mora ~ "continuous" ,
+      mean_time_mora ~ "continuous" ,
+      exposed_at_least_zero_mora ~ "dichotomous",
+      
+      hh_split_r3 ~ "dichotomous",
+      hh_split_r2 ~ "dichotomous",
+      hh_split_btwn_r2_r3 ~ "dichotomous",
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "") %>% 
+  add_overall(last=TRUE)
+```
+* For Hh who split between R1 and R2:
+184 households split between R1 and R2 to 396 households hence on average of 2.15 households.
+
+Size  * Nbr groups
+2       160
+3       20
+4       4
+
+* For Hh who split between R1 and R2:
+There is in total 427 'child household' who splitted between R1 and R3 and was surveyed in R3 a for a distinct 285 household in R1 
+
+Which represent a total of 469 (184+285) the remaining 20 come from household who first splitted a R2 and splitted againt in R3 (with two digits in R3).
+
+
+#### Link between splitted at least one and hh. characteristics at baseline 
+
+##### Using Komen
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_r2_r3,hh_size,affected_komen,hh_head_religion,hh_ethnic_group, mean_speed_komen, mean_time_komen) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_komen,exposed_at_least_zero_komen)) %>% 
+mutate(
+
+  affected_komen = factor(affected_komen, levels = c("0", "1")),
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_r2_r3 ~ affected_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_r2_r3 ~ exposed_at_least_zero_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_r2_r3 ~ high_exposed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_r2_r3 ~ mean_time_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_r2_r3 ~ mean_speed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_komen", "mean_time_komen", "affected_komen","high_exposed_komen","exposed_at_least_zero_komen","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+
+
+##### Using Roanu
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_r2_r3,hh_size,affected_roanu,hh_head_religion,hh_ethnic_group, mean_speed_roanu, mean_time_roanu) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_roanu,exposed_at_least_zero_roanu)) %>% 
+mutate(
+
+  affected_roanu = factor(affected_roanu, levels = c("0", "1")),
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_r2_r3 ~ affected_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_r2_r3 ~ exposed_at_least_zero_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_r2_r3 ~ high_exposed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_r2_r3 ~ mean_time_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_r2_r3 ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+##### Using Mora
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_r2_r3,hh_size,affected_mora,hh_head_religion,hh_ethnic_group, mean_speed_mora, mean_time_mora) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_mora,exposed_at_least_zero_mora)) %>% 
+mutate(
+
+  affected_mora = factor(affected_mora, levels = c("0", "1")),
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_r2_r3 ~ affected_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_r2_r3 ~ exposed_at_least_zero_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_r2_r3 ~ high_exposed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_r2_r3 ~ mean_time_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_r2_r3 ~ mean_speed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+#### Link between splitted after the cyclone and hh. characteristics at baseline 
+
+##### Komen
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_btwn_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_btwn_r2_r3,hh_size,affected_komen,hh_head_religion,hh_ethnic_group, mean_speed_komen, mean_time_komen) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_komen,exposed_at_least_zero_komen)) %>% 
+mutate(
+
+  affected_komen = factor(affected_komen, levels = c("0", "1")),
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_btwn_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_btwn_r2_r3 ~ affected_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_btwn_r2_r3 ~ exposed_at_least_zero_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_btwn_r2_r3 ~ high_exposed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_btwn_r2_r3 ~ mean_time_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_btwn_r2_r3 ~ mean_speed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_komen", "mean_time_komen", "affected_komen","high_exposed_komen","exposed_at_least_zero_komen","affected_komen","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+
+##### Roanu
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_btwn_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_btwn_r2_r3,hh_size,affected_roanu,hh_head_religion,hh_ethnic_group, mean_speed_roanu, mean_time_roanu) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_roanu,exposed_at_least_zero_roanu)) %>% 
+mutate(
+
+  affected_roanu = factor(affected_roanu, levels = c("0", "1")),
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_btwn_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_btwn_r2_r3 ~ affected_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_btwn_r2_r3 ~ exposed_at_least_zero_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_btwn_r2_r3 ~ high_exposed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_btwn_r2_r3 ~ mean_time_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_btwn_r2_r3 ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+Random chances ?
+
+##### Mora
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+df_reg = df_r1_hh %>% 
+                   mutate(hh_split_btwn_r2_r3 = ifelse(hh_split_r3=="1"|hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_id, hh_split_btwn_r2_r3,hh_size,affected_mora,hh_head_religion,hh_ethnic_group, mean_speed_mora, mean_time_mora) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65, high_exposed_mora,exposed_at_least_zero_mora)) %>% 
+mutate(
+
+  affected_mora = factor(affected_mora, levels = c("0", "1")),
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(hh_split_btwn_r2_r3 ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(hh_split_btwn_r2_r3 ~ affected_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(hh_split_btwn_r2_r3 ~ exposed_at_least_zero_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(hh_split_btwn_r2_r3 ~ high_exposed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(hh_split_btwn_r2_r3 ~ mean_time_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(hh_split_btwn_r2_r3 ~ mean_speed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","affected_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+```
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+   select(hh_split_r2_r3,interview_status_r2,interview_status_r3) %>% 
+  
+mutate(
+        hh_split_r2_r3 = factor(hh_split_r2_r3, levels = c("0", "1"), labels = c("Don't split", "Split"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = hh_split_r2_r3, 
+     label = list(
+       interview_status_r2 ~ "Interview status in R2",
+       interview_status_r3 ~ "Interview status R3"),
+    
+    #type = list(affected_upazila ~ "dichotomous"),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "") %>% 
+  add_overall(last=TRUE)
+```
+
+- How to correct ???
+
+In the following, I remove the split households (from the initial 6503 households, I remove the 449 to perform the attrition analysis). Therefore 6054 hh remains
+
+
+
+### Attrition
+
+Interestingly, some households that migrated in R2 were found by enumerators and surveyed in R3: 65 among the 234 households who migrated between R1 and R2, around 27.78 percent.
+
+#### Full Attrition
+
+
+My attrition is defined as the *households that were not surveyed in R3 (after the disaster)* because of:
+
+- Migration: 5.71 percent (346/6054),
+- Not at home when enumerators came: 0.4 percent (24/6054),
+- Not found (total attrition): 16.17 percent (979/6054),
+- Refused: 0.24 percent (15/6054).
+
+Therefore a total attrition of 22.53 percent over 6 years (around 4.09 per year).
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  # Selecting relevant variables
+  filter(hh_split_r2_r3=="0") %>% 
+   select(interview_status_r2,interview_status_r3) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = interview_status_r3, 
+     label = list(
+       interview_status_r2 ~ "Interview status in R2"),
+    
+    #type = list(affected_upazila ~ "dichotomous"),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Interview status in R3") %>% 
+  add_overall(last=TRUE)
+```
+
+This figure summarize the idea of the previous table.
+
+1177+187 = 1364 ==1364 from the previous table
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  select(hh_id) %>% 
+  pull()
+
+all_comb <- df_r1_hh %>%
+            select(hh_id,survey_round) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            plyr::rbind.fill(df_r2_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            plyr::rbind.fill(df_r3_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            tidyr::expand(hh_id,survey_round)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_r1_hh %>%
+          select(hh_id,survey_round, hh_size, affected_komen,treat_group_komen, survey_year) %>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_komen_post=0) %>% 
+          plyr::rbind.fill(
+            df_r2_hh %>%
+              select(hh_id,survey_round, hh_size, affected_komen,treat_group_komen, survey_year)%>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_komen_post=0))%>% 
+          plyr::rbind.fill(
+            df_r3_hh %>%
+              select(hh_id,survey_round, hh_size, affected_komen,treat_group_komen, survey_year)%>% 
+              filter(hh_id %in% lst_menage) %>% 
+              mutate(treat_group_komen_post=treat_group_komen))%>% 
+  dplyr::right_join(all_comb, by=c("survey_round", "hh_id")) %>% 
+  mutate(
+    survey_year = ifelse(survey_round==1,2011,
+                              ifelse(survey_round==2,2015,
+                                     ifelse(survey_round==3,2018,NA))))
+
+
+# PanelView graph
+panelView::panelview(1 ~ treat_group_komen_post + hh_size, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE,
+          xlab = "Survey year", ylab = "Nbr hh.", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+```
+
+
+
+
+The attrited households are, on average:
+
+- smaller in terms of size.
+- have older heads.
+- live in disaster-affected upazilas.
+- have an Hindu household head.
+- have a head who is Bengali.
+- more likely to be male-headed.
+- have unclear education and literacy levels.
+- have fewer female members.
+- have fewer teenagers.
+- have fewer female teenagers.
+
+I use R1 data to do these table
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+# remove the splitted hh
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  # Selecting relevant variables
+  filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id,attrition,hh_size,affected_komen,affected_roanu, affected_mora, hh_head_religion,hh_ethnic_group) %>% 
+  
+mutate(attrition = factor(attrition, levels = c("0", "1"), labels = c("Hh. doesn't attrited", "Hh. attrited"), ordered = TRUE)) %>%
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(hh_id, affected_upazila_all, affected_komen, high_exposed_komen,exposed_at_least_zero_komen,mean_speed_komen, mean_time_komen, affected_roanu, high_exposed_roanu,   exposed_at_least_zero_roanu, mean_speed_roanu, mean_time_roanu, affected_mora, high_exposed_mora, exposed_at_least_zero_mora, mean_speed_mora, mean_time_mora, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  affected_upazila_all = factor(affected_upazila_all, levels = c("0", "1")),
+  affected_komen = factor(affected_komen, levels = c("0", "1")),
+  affected_roanu = factor(affected_roanu, levels = c("0", "1")),
+  affected_mora = factor(affected_mora, levels = c("0", "1")),
+  
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+  mean_speed_komen = as.numeric(mean_speed_komen),
+  mean_time_komen = as.numeric(mean_time_komen),
+  
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+  mean_speed_roanu = as.numeric(mean_speed_roanu),
+  mean_time_roanu = as.numeric(mean_time_roanu),
+  
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+  mean_speed_mora = as.numeric(mean_speed_mora),
+  mean_time_mora = as.numeric(mean_time_mora),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+  
+  
+  
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = attrition, 
+     label = list(
+       affected_upazila_all  ~ "Affected by at least one (Yes=1, No=0)",
+       affected_komen ~ "Affected komen (Yes=1, No=0)",
+       affected_roanu ~ "Affected roanu (Yes=1, No=0)",
+       affected_mora ~ "Affected mora (Yes=1, No=0)",
+       
+       mean_speed_komen ~ "Mean wind speed (in m/s) komen",
+       mean_time_komen ~ "Mean wind duration (in hours) komen",
+       
+       mean_speed_roanu ~ "Mean wind speed (in m/s) roanu",
+       mean_time_roanu ~ "Mean wind duration (in hours) roanu",
+       
+       mean_speed_mora ~ "Mean wind speed (in m/s) mora",
+       mean_time_mora ~ "Mean wind duration (in hours) mora",
+       
+       high_exposed_komen ~ "Highly exposed union komen (Yes=1, No=0)",
+       exposed_at_least_zero_komen ~ "Exposed union komen (Yes=1, No=0)",
+       
+       high_exposed_roanu ~ "Highly exposed union roanu (Yes=1, No=0)",
+       exposed_at_least_zero_roanu ~ "Exposed union roanu (Yes=1, No=0)",
+       
+       high_exposed_mora ~ "Highly exposed union mora (Yes=1, No=0)",
+       exposed_at_least_zero_mora ~ "Exposed union mora (Yes=1, No=0)",
+       
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      affected_upazila_all ~ "dichotomous",
+      
+      affected_komen ~ "dichotomous",
+      affected_roanu ~ "dichotomous" ,
+      affected_mora ~ "dichotomous" ,
+      
+      high_exposed_komen ~ "dichotomous",
+      mean_speed_komen ~ "continuous" ,
+      mean_time_komen ~ "continuous" ,
+      exposed_at_least_zero_komen ~ "dichotomous",
+      
+      high_exposed_roanu ~ "dichotomous",
+      mean_speed_roanu ~ "continuous" ,
+      mean_time_roanu ~ "continuous" ,
+      exposed_at_least_zero_roanu ~ "dichotomous",
+      
+      high_exposed_mora ~ "dichotomous",
+      mean_speed_mora ~ "continuous" ,
+      mean_time_mora ~ "continuous" ,
+      exposed_at_least_zero_mora ~ "dichotomous",
+      
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "") %>% 
+  add_overall(last=TRUE)
+```
+
+##### Komen
+
+###### Baseline
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg = df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  # Selecting relevant variables
+  filter(hh_split_r2_r3=="0") %>%  
+  # Selecting relevant variables
+   select(hh_id, attrition,hh_size,affected_komen,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(high_exposed_komen, exposed_at_least_zero_komen,mean_speed_komen, mean_time_komen, hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+  affected_komen = factor(affected_komen, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ affected_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ exposed_at_least_zero_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ high_exposed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_time_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(attrition ~ mean_speed_komen + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_komen", "mean_time_komen", "affected_komen","high_exposed_komen","exposed_at_least_zero_komen","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+
+```
+
+
+###### Cross product
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+re0 <- felm(attrition ~ affected_komen + affected_komen:hhm_sex + affected_komen:hhm_age+ affected_komen:hh_size +  affected_komen:marital_status_hhm+ affected_komen:literacy_hhm+ affected_komen:education_high +  affected_komen:hh_head_religion + affected_komen:hh_ethnic_group + affected_komen:nbr_female+ affected_komen:nbr_underfive+ affected_komen:nbr_yngchldrn_5_10+ affected_komen:nbr_teenager_10_20+ affected_komen:nbr_adults_20_65+ affected_komen:nbr_female_underfive+ affected_komen:nbr_female_yngchldrn_5_10+ affected_komen:nbr_female_teenager_10_20+ affected_komen:nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ exposed_at_least_zero_komen + exposed_at_least_zero_komen:hhm_sex + exposed_at_least_zero_komen:hhm_age+ exposed_at_least_zero_komen:hh_size +  exposed_at_least_zero_komen:marital_status_hhm+ exposed_at_least_zero_komen:literacy_hhm+ exposed_at_least_zero_komen:education_high +  exposed_at_least_zero_komen:hh_head_religion + exposed_at_least_zero_komen:hh_ethnic_group + exposed_at_least_zero_komen:nbr_female+ exposed_at_least_zero_komen:nbr_underfive+ exposed_at_least_zero_komen:nbr_yngchldrn_5_10+ exposed_at_least_zero_komen:nbr_teenager_10_20+ exposed_at_least_zero_komen:nbr_adults_20_65+ exposed_at_least_zero_komen:nbr_female_underfive+ exposed_at_least_zero_komen:nbr_female_yngchldrn_5_10+ exposed_at_least_zero_komen:nbr_female_teenager_10_20+ exposed_at_least_zero_komen:nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ high_exposed_komen + high_exposed_komen:hhm_sex + high_exposed_komen:hhm_age+ high_exposed_komen:hh_size +  high_exposed_komen:marital_status_hhm+ high_exposed_komen:literacy_hhm+ high_exposed_komen:education_high +  high_exposed_komen:hh_head_religion + high_exposed_komen:hh_ethnic_group + high_exposed_komen:nbr_female+ high_exposed_komen:nbr_underfive+ high_exposed_komen:nbr_yngchldrn_5_10+ high_exposed_komen:nbr_teenager_10_20+ high_exposed_komen:nbr_adults_20_65+ high_exposed_komen:nbr_female_underfive+ high_exposed_komen:nbr_female_yngchldrn_5_10+ high_exposed_komen:nbr_female_teenager_10_20+ high_exposed_komen:nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ mean_time_komen + mean_time_komen:hhm_sex + mean_time_komen:hhm_age+ mean_time_komen:hh_size +  mean_time_komen:marital_status_hhm+ mean_time_komen:literacy_hhm+ mean_time_komen:education_high +  mean_time_komen:hh_head_religion + mean_time_komen:hh_ethnic_group + mean_time_komen:nbr_female+ mean_time_komen:nbr_underfive+ mean_time_komen:nbr_yngchldrn_5_10+ mean_time_komen:nbr_teenager_10_20+ mean_time_komen:nbr_adults_20_65+ mean_time_komen:nbr_female_underfive+ mean_time_komen:nbr_female_yngchldrn_5_10+ mean_time_komen:nbr_female_teenager_10_20+ mean_time_komen:nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_speed_komen + mean_speed_komen:hhm_sex + mean_speed_komen:hhm_age+ mean_speed_komen:hh_size +  mean_speed_komen:marital_status_hhm+ mean_speed_komen:literacy_hhm+ mean_speed_komen:education_high +  mean_speed_komen:hh_head_religion + mean_speed_komen:hh_ethnic_group + mean_speed_komen:nbr_female+ mean_speed_komen:nbr_underfive+ mean_speed_komen:nbr_yngchldrn_5_10+ mean_speed_komen:nbr_teenager_10_20+ mean_speed_komen:nbr_adults_20_65+ mean_speed_komen:nbr_female_underfive+ mean_speed_komen:nbr_female_yngchldrn_5_10+ mean_speed_komen:nbr_female_teenager_10_20+ mean_speed_komen:nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+# keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+notes = "Author's owns computations")
+
+
+
+```
+
+##### Roanu
+
+###### Baseline
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg = df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  # Selecting relevant variables
+  filter(hh_split_r2_r3=="0") %>%  
+  # Selecting relevant variables
+   select(hh_id, attrition,hh_size,affected_roanu,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(high_exposed_roanu, exposed_at_least_zero_roanu,mean_speed_roanu, mean_time_roanu, hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+  affected_roanu = factor(affected_roanu, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ affected_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ exposed_at_least_zero_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ high_exposed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_time_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(attrition ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+
+```
+
+
+###### Cross product
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+re0 <- felm(attrition ~ affected_roanu + affected_roanu:hhm_sex + affected_roanu:hhm_age+ affected_roanu:hh_size +  affected_roanu:marital_status_hhm+ affected_roanu:literacy_hhm+ affected_roanu:education_high +  affected_roanu:hh_head_religion + affected_roanu:hh_ethnic_group + affected_roanu:nbr_female+ affected_roanu:nbr_underfive+ affected_roanu:nbr_yngchldrn_5_10+ affected_roanu:nbr_teenager_10_20+ affected_roanu:nbr_adults_20_65+ affected_roanu:nbr_female_underfive+ affected_roanu:nbr_female_yngchldrn_5_10+ affected_roanu:nbr_female_teenager_10_20+ affected_roanu:nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ exposed_at_least_zero_roanu + exposed_at_least_zero_roanu:hhm_sex + exposed_at_least_zero_roanu:hhm_age+ exposed_at_least_zero_roanu:hh_size +  exposed_at_least_zero_roanu:marital_status_hhm+ exposed_at_least_zero_roanu:literacy_hhm+ exposed_at_least_zero_roanu:education_high +  exposed_at_least_zero_roanu:hh_head_religion + exposed_at_least_zero_roanu:hh_ethnic_group + exposed_at_least_zero_roanu:nbr_female+ exposed_at_least_zero_roanu:nbr_underfive+ exposed_at_least_zero_roanu:nbr_yngchldrn_5_10+ exposed_at_least_zero_roanu:nbr_teenager_10_20+ exposed_at_least_zero_roanu:nbr_adults_20_65+ exposed_at_least_zero_roanu:nbr_female_underfive+ exposed_at_least_zero_roanu:nbr_female_yngchldrn_5_10+ exposed_at_least_zero_roanu:nbr_female_teenager_10_20+ exposed_at_least_zero_roanu:nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ high_exposed_roanu + high_exposed_roanu:hhm_sex + high_exposed_roanu:hhm_age+ high_exposed_roanu:hh_size +  high_exposed_roanu:marital_status_hhm+ high_exposed_roanu:literacy_hhm+ high_exposed_roanu:education_high +  high_exposed_roanu:hh_head_religion + high_exposed_roanu:hh_ethnic_group + high_exposed_roanu:nbr_female+ high_exposed_roanu:nbr_underfive+ high_exposed_roanu:nbr_yngchldrn_5_10+ high_exposed_roanu:nbr_teenager_10_20+ high_exposed_roanu:nbr_adults_20_65+ high_exposed_roanu:nbr_female_underfive+ high_exposed_roanu:nbr_female_yngchldrn_5_10+ high_exposed_roanu:nbr_female_teenager_10_20+ high_exposed_roanu:nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ mean_time_roanu + mean_time_roanu:hhm_sex + mean_time_roanu:hhm_age+ mean_time_roanu:hh_size +  mean_time_roanu:marital_status_hhm+ mean_time_roanu:literacy_hhm+ mean_time_roanu:education_high +  mean_time_roanu:hh_head_religion + mean_time_roanu:hh_ethnic_group + mean_time_roanu:nbr_female+ mean_time_roanu:nbr_underfive+ mean_time_roanu:nbr_yngchldrn_5_10+ mean_time_roanu:nbr_teenager_10_20+ mean_time_roanu:nbr_adults_20_65+ mean_time_roanu:nbr_female_underfive+ mean_time_roanu:nbr_female_yngchldrn_5_10+ mean_time_roanu:nbr_female_teenager_10_20+ mean_time_roanu:nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_speed_roanu + mean_speed_roanu:hhm_sex + mean_speed_roanu:hhm_age+ mean_speed_roanu:hh_size +  mean_speed_roanu:marital_status_hhm+ mean_speed_roanu:literacy_hhm+ mean_speed_roanu:education_high +  mean_speed_roanu:hh_head_religion + mean_speed_roanu:hh_ethnic_group + mean_speed_roanu:nbr_female+ mean_speed_roanu:nbr_underfive+ mean_speed_roanu:nbr_yngchldrn_5_10+ mean_speed_roanu:nbr_teenager_10_20+ mean_speed_roanu:nbr_adults_20_65+ mean_speed_roanu:nbr_female_underfive+ mean_speed_roanu:nbr_female_yngchldrn_5_10+ mean_speed_roanu:nbr_female_teenager_10_20+ mean_speed_roanu:nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+# keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+notes = "Author's owns computations")
+
+
+
+```
+
+##### Mora
+
+###### Baseline
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg = df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  # Selecting relevant variables
+  filter(hh_split_r2_r3=="0") %>%  
+  # Selecting relevant variables
+   select(hh_id, attrition,hh_size,affected_mora,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select(high_exposed_mora, exposed_at_least_zero_mora,mean_speed_mora, mean_time_mora, hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+  affected_mora = factor(affected_mora, levels = c("0", "1")),
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id))
+
+re0 <- felm(attrition ~ hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ affected_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ exposed_at_least_zero_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ high_exposed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_time_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+re5 <- felm(attrition ~ mean_speed_mora + hhm_sex + hhm_age+ hh_size +  marital_status_hhm+ literacy_hhm+ education_high +  hh_head_religion + hh_ethnic_group + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10+ nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10+ nbr_female_teenager_10_20+ nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+
+
+
+```
+
+###### Cross product
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+re0 <- felm(attrition ~ affected_mora + affected_mora:hhm_sex + affected_mora:hhm_age+ affected_mora:hh_size +  affected_mora:marital_status_hhm+ affected_mora:literacy_hhm+ affected_mora:education_high +  affected_mora:hh_head_religion + affected_mora:hh_ethnic_group + affected_mora:nbr_female+ affected_mora:nbr_underfive+ affected_mora:nbr_yngchldrn_5_10+ affected_mora:nbr_teenager_10_20+ affected_mora:nbr_adults_20_65+ affected_mora:nbr_female_underfive+ affected_mora:nbr_female_yngchldrn_5_10+ affected_mora:nbr_female_teenager_10_20+ affected_mora:nbr_female_adults_20_65, data=df_reg)
+
+re1 <- felm(attrition ~ exposed_at_least_zero_mora + exposed_at_least_zero_mora:hhm_sex + exposed_at_least_zero_mora:hhm_age+ exposed_at_least_zero_mora:hh_size +  exposed_at_least_zero_mora:marital_status_hhm+ exposed_at_least_zero_mora:literacy_hhm+ exposed_at_least_zero_mora:education_high +  exposed_at_least_zero_mora:hh_head_religion + exposed_at_least_zero_mora:hh_ethnic_group + exposed_at_least_zero_mora:nbr_female+ exposed_at_least_zero_mora:nbr_underfive+ exposed_at_least_zero_mora:nbr_yngchldrn_5_10+ exposed_at_least_zero_mora:nbr_teenager_10_20+ exposed_at_least_zero_mora:nbr_adults_20_65+ exposed_at_least_zero_mora:nbr_female_underfive+ exposed_at_least_zero_mora:nbr_female_yngchldrn_5_10+ exposed_at_least_zero_mora:nbr_female_teenager_10_20+ exposed_at_least_zero_mora:nbr_female_adults_20_65, data=df_reg)
+
+re2 <- felm(attrition ~ high_exposed_mora + high_exposed_mora:hhm_sex + high_exposed_mora:hhm_age+ high_exposed_mora:hh_size +  high_exposed_mora:marital_status_hhm+ high_exposed_mora:literacy_hhm+ high_exposed_mora:education_high +  high_exposed_mora:hh_head_religion + high_exposed_mora:hh_ethnic_group + high_exposed_mora:nbr_female+ high_exposed_mora:nbr_underfive+ high_exposed_mora:nbr_yngchldrn_5_10+ high_exposed_mora:nbr_teenager_10_20+ high_exposed_mora:nbr_adults_20_65+ high_exposed_mora:nbr_female_underfive+ high_exposed_mora:nbr_female_yngchldrn_5_10+ high_exposed_mora:nbr_female_teenager_10_20+ high_exposed_mora:nbr_female_adults_20_65, data=df_reg)
+
+re3 <- felm(attrition ~ mean_time_mora + mean_time_mora:hhm_sex + mean_time_mora:hhm_age+ mean_time_mora:hh_size +  mean_time_mora:marital_status_hhm+ mean_time_mora:literacy_hhm+ mean_time_mora:education_high +  mean_time_mora:hh_head_religion + mean_time_mora:hh_ethnic_group + mean_time_mora:nbr_female+ mean_time_mora:nbr_underfive+ mean_time_mora:nbr_yngchldrn_5_10+ mean_time_mora:nbr_teenager_10_20+ mean_time_mora:nbr_adults_20_65+ mean_time_mora:nbr_female_underfive+ mean_time_mora:nbr_female_yngchldrn_5_10+ mean_time_mora:nbr_female_teenager_10_20+ mean_time_mora:nbr_female_adults_20_65, data=df_reg)
+
+re4 <- felm(attrition ~ mean_speed_mora + mean_speed_mora:hhm_sex + mean_speed_mora:hhm_age+ mean_speed_mora:hh_size +  mean_speed_mora:marital_status_hhm+ mean_speed_mora:literacy_hhm+ mean_speed_mora:education_high +  mean_speed_mora:hh_head_religion + mean_speed_mora:hh_ethnic_group + mean_speed_mora:nbr_female+ mean_speed_mora:nbr_underfive+ mean_speed_mora:nbr_yngchldrn_5_10+ mean_speed_mora:nbr_teenager_10_20+ mean_speed_mora:nbr_adults_20_65+ mean_speed_mora:nbr_female_underfive+ mean_speed_mora:nbr_female_yngchldrn_5_10+ mean_speed_mora:nbr_female_teenager_10_20+ mean_speed_mora:nbr_female_adults_20_65, data=df_reg)
+
+
+
+stargazer(re0, re1, re2, re3, re4, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
+# keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+notes = "Author's owns computations")
+
+
+
+```
+
+The sex of the household head seems to be relevant for the attrition: male headed household are more likely to attrite.
+### Individual level analysis
+
+#### All hh members
+
+In the following, I restrict the sample to the households that do not split and do not attrite in the following round of the survey.
+
+Non-affected individuals are on average:
+
+* bigger, but the difference is not statistically significant
+* more likely to be married and less likely to have never been married
+* more likely to read
+
+##### Komen
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"), attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  filter(attrition=="0") %>% 
+  dplyr::select(hh_id) %>% 
+  pull()
+
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_komen, waz_who, haz_who, bmiz_who) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected komen") %>% 
+  add_overall(last=TRUE)
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, high_exposed_komen, waz_who, haz_who, bmiz_who) %>% 
+  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly Affected Union") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_komen, waz_who, haz_who, bmiz_who) %>% 
+  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Union") %>% 
+  add_overall(last=TRUE)
+```
+
+
+##### Roanu
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"), attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  filter(attrition=="0") %>% 
+  dplyr::select(hh_id) %>% 
+  pull()
+
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_roanu, waz_who, haz_who, bmiz_who) %>% 
+  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected roanu") %>% 
+  add_overall(last=TRUE)
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, high_exposed_roanu, waz_who, haz_who, bmiz_who) %>% 
+  mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly Affected Union") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_roanu, waz_who, haz_who, bmiz_who) %>% 
+  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Union") %>% 
+  add_overall(last=TRUE)
+```
+
+
+
+
+##### Mora
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"), attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  filter(attrition=="0") %>% 
+  dplyr::select(hh_id) %>% 
+  pull()
+
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_mora, waz_who, haz_who, bmiz_who) %>% 
+  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected mora") %>% 
+  add_overall(last=TRUE)
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, high_exposed_mora, waz_who, haz_who, bmiz_who) %>% 
+  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly Affected Union") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm,hhm_sex,hhm_age,relation_hhh,marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_mora, waz_who, haz_who, bmiz_who) %>% 
+  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Union") %>% 
+  add_overall(last=TRUE)
+```
+
+
+#### Missing data
+
+Missing data in the outcome variables (or components of them) at the individual level can arise from several sources.
+If affected individuals are more likely to provide missing information, this can pose problems for the identification strategy.
+
+The table below provides information on the number of people for whom weight was recorded, but height was missing (they are 196) or the otherside (they are 4).
+Two individuals were absent but had their weight measured.
+Forty-nine individuals were sick, so their weight was likely approximated, but their height was not recorded.
+
+```{r}
+df_global[which(df_global$if_not_measured_why!="have measured" & !is.na(df_global$weight_kg)),] %>% select(if_not_measured_why,weight_kg, height_cm) %>% 
+  group_by(if_not_measured_why) %>% 
+  summarise(n=n())
+
+df_global[which(df_global$if_not_measured_why!="have measured" & !is.na(df_global$height_cm)),] %>% select(if_not_measured_why,weight_kg, height_cm) %>% 
+  group_by(if_not_measured_why) %>% 
+  summarise(n=n())
+
+df_global[which(df_global$if_not_measured_why!="have measured" & !is.na(df_global$height_cm)  & !is.na(df_global$weight_kg)),] %>% select(if_not_measured_why,weight_kg, height_cm) %>% 
+  group_by(if_not_measured_why) %>% 
+  summarise(n=n())
+```
+
+They reminding 2888(3088-200) are people for which the information are properly registered.
+
+##### Komen
+
+There seems that there is not any statistical relation between wind and missing outcomes.
+```{r}
+
+# Fist coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, affected_komen) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_komen, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed upazilas") %>% 
+  add_overall(last=TRUE)
+
+
+# Second coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, exposed_at_least_zero_komen) %>% 
+  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_komen, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one wind") %>% 
+  add_overall(last=TRUE)
+
+
+# Third coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, high_exposed_komen) %>% 
+  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_komen, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+
+```
+
+
+##### Roanu
+
+There seems to be a statistical relation between wind and missing outcomes using
+the first estimated of for roanu. The other are not statisticaly significant.
+```{r}
+
+# Fist coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, affected_roanu) %>% 
+  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_roanu, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed upazilas") %>% 
+  add_overall(last=TRUE)
+
+
+# Second coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, exposed_at_least_zero_roanu) %>% 
+  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_roanu, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one wind") %>% 
+  add_overall(last=TRUE)
+
+
+# Third coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, high_exposed_roanu) %>% 
+  mutate(high_exposed_komen = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_roanu, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+
+```
+
+
+##### Mora
+
+There seems to be a statistical relation between wind and missing outcomes using
+the first and second estimated of wind for mora. The other are not statisticaly significant.
+```{r}
+
+# Fist coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, affected_mora) %>% 
+  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_mora, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed upazilas") %>% 
+  add_overall(last=TRUE)
+
+
+# Second coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, exposed_at_least_zero_mora) %>% 
+  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_mora, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one wind") %>% 
+  add_overall(last=TRUE)
+
+
+# Third coef
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  filter(if_not_measured_why!="have measured") %>% 
+  select(if_not_measured_why, high_exposed_mora) %>% 
+  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_mora, 
+     label = list(
+       if_not_measured_why  ~ "Reason for being missing in outcome"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+
+```
+
+#### Regression analysis
+
+This table presents a regression analysis to identify factors that may explain why some individuals have NaN values in their outcome variables. It shows that the probability of being missing increases with:
+
+* Being in a cyclone-affected upazila (possibly due to sickness)
+* Being male (probably because they are more likely to be absent)
+* Age
+* Household size (the larger the household, the more likely there is an individual with missing)
+* Literacy and having a diploma are negatively correlated with the probability of being missing
+
+Now, I would like to understand the factors that can explain the probability of being missing after the disaster (the attrition at the individual level). I ran a regression after the disaster to understand the characteristics that can explain the probability of being missing. I found that the same factors from the previous analysis explain the probability of being missing.
+
+
+
+##### Komen
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg <- df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  # Selecting relevant variables
+  mutate(out_missing = ifelse(if_not_measured_why=="have measured",0,1)) %>% 
+  mutate(time_bin = as.factor(ifelse(survey_year>=2018,1,0)),
+         affected_komen = as.factor(affected_komen))
+
+#stargazer(regsplit,  type = "text", title = "Split and household characteristics")
+
+regnan_1 <- felm(out_missing ~ affected_komen*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ affected_komen*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ affected_komen*time_bin + affected_komen:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          
+          #keep = c("affected_upazila","time_bin","affected_upazila:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "affected_upazila","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"),
+          notes = "Author's owns computations")
+
+
+# Second coef
+
+regnan_1 <- felm(out_missing ~ exposed_at_least_zero_komen*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ exposed_at_least_zero_komen*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ exposed_at_least_zero_komen*time_bin + exposed_at_least_zero_komen:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("high_exposed","time_bin","high_exposed:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "high_exposed","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+# Affected union
+
+regnan_1 <- felm(out_missing ~ high_exposed_komen*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ high_exposed_komen*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ high_exposed_komen*time_bin + high_exposed_komen:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("exposed_at_least_zero","time_bin","exposed_at_least_zero:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+```
+
+
+##### Roanu
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg <- df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  # Selecting relevant variables
+  mutate(out_missing = ifelse(if_not_measured_why=="have measured",0,1)) %>% 
+  mutate(time_bin = as.factor(ifelse(survey_year>=2018,1,0)),
+         affected_roanu = as.factor(affected_roanu))
+
+#stargazer(regsplit,  type = "text", title = "Split and household characteristics")
+
+regnan_1 <- felm(out_missing ~ affected_roanu*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ affected_roanu*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ affected_roanu*time_bin + affected_roanu:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          
+          #keep = c("affected_upazila","time_bin","affected_upazila:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "affected_upazila","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"),
+          notes = "Author's owns computations")
+
+
+# Second coef
+
+regnan_1 <- felm(out_missing ~ exposed_at_least_zero_roanu*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ exposed_at_least_zero_roanu*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ exposed_at_least_zero_roanu*time_bin + exposed_at_least_zero_roanu:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("high_exposed","time_bin","high_exposed:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "high_exposed","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+# Affected union
+
+regnan_1 <- felm(out_missing ~ high_exposed_roanu*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ high_exposed_roanu*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ high_exposed_roanu*time_bin + high_exposed_roanu:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("exposed_at_least_zero","time_bin","exposed_at_least_zero:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+```
+
+
+##### Mora
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_reg <- df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  # Selecting relevant variables
+  mutate(out_missing = ifelse(if_not_measured_why=="have measured",0,1)) %>% 
+  mutate(time_bin = as.factor(ifelse(survey_year>=2018,1,0)),
+         affected_mora = as.factor(affected_mora))
+
+#stargazer(regsplit,  type = "text", title = "Split and household characteristics")
+
+regnan_1 <- felm(out_missing ~ affected_mora*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ affected_mora*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ affected_mora*time_bin + affected_mora:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          
+          #keep = c("affected_upazila","time_bin","affected_upazila:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "affected_upazila","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"),
+          notes = "Author's owns computations")
+
+
+# Second coef
+
+regnan_1 <- felm(out_missing ~ exposed_at_least_zero_mora*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ exposed_at_least_zero_mora*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ exposed_at_least_zero_mora*time_bin + exposed_at_least_zero_mora:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("high_exposed","time_bin","high_exposed:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "high_exposed","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+# Affected union
+
+regnan_1 <- felm(out_missing ~ high_exposed_mora*time_bin, data=df_reg)
+
+regnan_2 <- felm(out_missing ~ high_exposed_mora*time_bin + hhm_sex + hhm_age +  marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65, data=df_reg)
+
+regnan_3 <- felm(out_missing ~ high_exposed_mora*time_bin + high_exposed_mora:time_bin:(hhm_sex + hhm_age + marital_status_hhm + hh_size + literacy_hhm + education_high +  hh_head_religion + hh_ethnic_group + relation_hhh + nbr_female+ nbr_underfive+ nbr_yngchldrn_5_10 + nbr_teenager_10_20+ nbr_adults_20_65+ nbr_female_underfive+ nbr_female_yngchldrn_5_10 + nbr_female_teenager_10_20 + nbr_female_adults_20_65), data=df_reg)
+
+
+
+stargazer(regnan_1, regnan_2,regnan_3, type = "text", title = "Prob. of missing", digits=2, float = TRUE,se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+          se.position = "below",notes.align = "l",table.placement = "H",header = F,
+          column.labels = c("Exposed UP.", "At least One", "Highly exposed"),
+          #keep = c("exposed_at_least_zero","time_bin","exposed_at_least_zero:time_bin","hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "exposed_at_least_zero","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
+          notes = "Author's owns computations")
+
+
+```
+
+#### Households composition
+Affected household seems to have more "new member" that join througth birth than
+non affected household.
+
+##### Komen
+```{r}
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, affected_komen) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_komen, 
+     label = list(
+       hhm_status  ~ "Member status"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed UP.") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, exposed_at_least_zero_komen) %>% 
+  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_komen, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least One") %>% 
+  add_overall(last=TRUE)
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, high_exposed_komen) %>% 
+  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_komen, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+```
+
+
+##### Roanu
+```{r}
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, affected_roanu) %>% 
+  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_roanu, 
+     label = list(
+       hhm_status  ~ "Member status"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed UP.") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, exposed_at_least_zero_roanu) %>% 
+  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_roanu, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least One") %>% 
+  add_overall(last=TRUE)
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, high_exposed_roanu) %>% 
+  mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_roanu, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+```
+
+##### Mora
+```{r}
+# Table 1
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, affected_mora) %>% 
+  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_mora, 
+     label = list(
+       hhm_status  ~ "Member status"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed UP.") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, exposed_at_least_zero_mora) %>% 
+  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_mora, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least One") %>% 
+  add_overall(last=TRUE)
+
+# Table 3
+df_global %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(hhm_status, high_exposed_mora) %>% 
+  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_mora, 
+     label = list(
+       hhm_status  ~ "Member status"),
+
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+```
+
+
+
+The following table summarizes each household member's history during the second and third survey rounds, depending on their status during the first survey round:
+
+* Among the members in the first round:
+  - N = 19298 (77.6 percent) were permanent household members during the first round;
+  - N = 3094 (12.4 percent) individuals joined the household later for reasons not related to birth;
+    - N = 2473 (10 percent) children were unborn during the first round but joined the household later (during r2 or r3);
+  - N = 3 (<1 percent) are unsure or missing.
+
+
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+# niveau individus
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  filter(attrition=="0") %>% 
+  dplyr::select(hh_id) %>% 
+  pull()
+
+lst_later_join = c('New member through marriage','New member upon return from divorce or seperation','Household merged/combined','Other reasons (permanent)','Residing elsewhere for the pursuit of studies')
+
+#'Death','Married and left household','Divorced and left household','Household split','Left household for employment','Other reasns for leaving the household','New sample household and current round member'
+
+tbl_data <- df_r2_anthr1 %>% 
+  filter(hh_id %in% lst_menage) %>% 
+  select(member_id, hhm_status) %>% 
+  rename(hhm_status_r2 = hhm_status) %>%
+  plyr::rbind.fill(
+    df_r2_anthr2 %>% 
+      filter(hh_id %in% lst_menage) %>% 
+      select(member_id, hhm_status) %>% 
+      rename(hhm_status_r2 = hhm_status)) %>% 
+  dplyr::full_join(
+    df_r3_anthr1 %>% 
+      filter(hh_id %in% lst_menage) %>% 
+      select(member_id, hhm_status) %>% 
+      rename(hhm_status_r3 = hhm_status) %>%
+    plyr::rbind.fill(
+      df_r3_anthr2 %>% 
+        filter(hh_id %in% lst_menage) %>% 
+        select(member_id, hhm_status) %>% 
+        rename(hhm_status_r3 = hhm_status))) %>% 
+  dplyr::full_join(
+    df_r1_anthr1 %>% 
+      filter(hh_id %in% lst_menage) %>% 
+      select(member_id, hhm_status) %>% 
+      rename(hhm_status_r1 = hhm_status) %>%
+    plyr::rbind.fill(
+      df_r1_anthr2 %>% 
+        filter(hh_id %in% lst_menage) %>% 
+        select(member_id, hhm_status) %>% 
+        rename(hhm_status_r1 = hhm_status))) %>% 
+  select(member_id, hhm_status_r1, hhm_status_r2, hhm_status_r3) %>% 
+  mutate(hhm_status_r2 = ifelse(is.na(hhm_status_r1) & is.na(hhm_status_r2) & (hhm_status_r3 == "New member (new born)"),"Unborn", ifelse(is.na(hhm_status_r1) & is.na(hhm_status_r2) & (hhm_status_r3 %in% lst_later_join),"Join later",hhm_status_r2)),
+         
+hhm_status_r1 = ifelse(is.na(hhm_status_r1) & (hhm_status_r2 == "New member (new born)"),"Unborn",ifelse(is.na(hhm_status_r1) & (hhm_status_r2 %in% c(lst_later_join, "Join later")),"Join later",ifelse(is.na(hhm_status_r1) & (hhm_status_r2 == "Unborn"),"Unborn",  hhm_status_r1))))
+
+tbl_data <- tbl_data %>% 
+  mutate(hhm_status_r1 = replace_na(hhm_status_r1, "Missing"),
+         hhm_status_r2 = replace_na(hhm_status_r2, "Missing"),
+         hhm_status_r3 = replace_na(hhm_status_r3, "Missing"))
+
+tbl_data %>% 
+  select(hhm_status_r1, hhm_status_r2, hhm_status_r3) %>% 
+  tbl_strata(
+    strata = hhm_status_r1,
+    .tbl_fun =
+      ~ .x %>%
+      tbl_summary(
+    by = hhm_status_r2, 
+      label = list(
+        #hhm_status_r3 ~ "Status R3",
+        hhm_status_r3 ~ "Status R3"
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ "Member status in R2 vs R3"),
+    # Add difference statistics to the table
+    #add_difference(),
+    .header = "**{strata}**, N = {n}",
+    #.combine_with = "tbl_stack",
+    #.combine_args = list(group_header = NULL),
+    .quiet = TRUE) 
+```
+
+
+Grouping some class to build a more comprehensible table
+
+```{r}
+
+tbl_data <- tbl_data %>% 
+  mutate(hhm_status_r1 = ifelse(hhm_status_r1=="Permanent (r1)", "Permanent",hhm_status_r1),
+         hhm_status_r2 = ifelse(hhm_status_r2 %in% c('New member through marriage','New member upon return from divorce or seperation','Household merged/combined'), "New member (divorce,marriage,combined)", hhm_status_r2),
+         hhm_status_r3 = ifelse(hhm_status_r3 %in% c('New member through marriage','New member upon return from divorce or seperation','Household merged/combined'), "New member (divorce,marriage,combined)", hhm_status_r3))
+
+tbl_data %>% 
+  select(hhm_status_r1, hhm_status_r2, hhm_status_r3) %>% 
+  tbl_strata(
+    strata = hhm_status_r1,
+    .tbl_fun =
+      ~ .x %>%
+      tbl_summary(
+    by = hhm_status_r2, 
+      label = list(
+        #hhm_status_r3 ~ "Status R3",
+        hhm_status_r3 ~ "Status R3"
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ "Member status in R2 vs R3"),
+    # Add difference statistics to the table
+    #add_difference(),
+    .header = "**{strata}**, N = {n}",
+    #.combine_with = "tbl_stack",
+    #.combine_args = list(group_header = NULL),
+    .quiet = TRUE) 
+```
+
+
+There is 578 individuals with always NaN values for the three survey round. Among these we have people that are always sick or absent or even born during the last round but with NaN values in it.
+
+
+```{r results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+# niveau individus
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0"),
+         attrition = ifelse(interview_status_r3=="Complete","0","1")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  filter(attrition=="0") %>% 
+  dplyr::select(hh_id) %>% 
+  pull()
+
+# Komen
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            tidyr::expand(member_id,survey_year)
+
+
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year, affected_komen, treat_komen, weight_kg, hhm_age, if_not_measured_why) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+  dplyr::right_join(all_comb, by=c("member_id","survey_year")) %>% 
+  mutate(treat_group = ifelse((survey_year < 2018) & (is.na(treat_komen)),0, treat_komen))
+
+lst_treat_people <- all_comb %>% filter(treat_komen==1) %>% select(member_id) %>% distinct() %>% pull()
+
+all_comb <- all_comb %>% 
+  mutate(treat_group = ifelse((survey_year == 2018) & (is.na(treat_group)) & (member_id %in% lst_treat_people),1, ifelse( (survey_year == 2018) & (is.na(treat_group)) & !(member_id %in% lst_treat_people),0, treat_group)))
+
+panelView::panelview(1 ~ treat_group + weight_kg, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), display.all = TRUE, xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+
+
+# Roanu
+
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            tidyr::expand(member_id,survey_year)
+
+
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year, affected_roanu, treat_roanu, weight_kg, hhm_age, if_not_measured_why) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+  dplyr::right_join(all_comb, by=c("member_id","survey_year")) %>% 
+  mutate(treat_group = ifelse((survey_year < 2018) & (is.na(treat_roanu)),0, treat_roanu))
+
+lst_treat_people <- all_comb %>% filter(treat_roanu==1) %>% select(member_id) %>% distinct() %>% pull()
+
+all_comb <- all_comb %>% 
+  mutate(treat_group = ifelse((survey_year == 2018) & (is.na(treat_group)) & (member_id %in% lst_treat_people),1, ifelse( (survey_year == 2018) & (is.na(treat_group)) & !(member_id %in% lst_treat_people),0, treat_group)))
+
+panelView::panelview(1 ~ treat_group + weight_kg, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), display.all = TRUE, xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+
+
+# Mora
+
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            tidyr::expand(member_id,survey_year)
+
+
+all_comb <- df_global %>%
+            select(hh_id, member_id, survey_year, affected_mora, treat_mora, weight_kg, hhm_age, if_not_measured_why) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+  dplyr::right_join(all_comb, by=c("member_id","survey_year")) %>% 
+  mutate(treat_group = ifelse((survey_year < 2018) & (is.na(treat_mora)),0, treat_mora))
+
+lst_treat_people <- all_comb %>% filter(treat_mora==1) %>% select(member_id) %>% distinct() %>% pull()
+
+all_comb <- all_comb %>% 
+  mutate(treat_group = ifelse((survey_year == 2018) & (is.na(treat_group)) & (member_id %in% lst_treat_people),1, ifelse( (survey_year == 2018) & (is.na(treat_group)) & !(member_id %in% lst_treat_people),0, treat_group)))
+
+panelView::panelview(1 ~ treat_group + weight_kg, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), display.all = TRUE, xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+
+```
+
+
+
+#### For children of interest
+
+##### Komen
+```{r}
+# Table 1
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_komen) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Upazila") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh, marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_komen) %>% 
+  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm, education_high, hh_head_religion, hh_ethnic_group, high_exposed_komen) %>% 
+  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_komen, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+```
+
+
+
+##### Roanu
+```{r}
+# Table 1
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_roanu) %>% 
+  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Upazila") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh, marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_roanu) %>% 
+  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm, education_high, hh_head_religion, hh_ethnic_group, high_exposed_roanu) %>% 
+  mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_roanu, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+```
+
+
+
+##### Mora
+```{r}
+# Table 1
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, affected_mora) %>% 
+  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected Upazila") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 2
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh, marital_status_hhm,literacy_hhm,education_high,hh_head_religion,hh_ethnic_group, exposed_at_least_zero_mora) %>% 
+  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "At least one") %>% 
+  add_overall(last=TRUE)
+
+
+# Table 3
+df_global_corrected %>% 
+  filter(hh_id %in% lst_menage) %>%
+  select(weight_kg,height_cm, waz_who, haz_who, bmiz_who,hhm_sex,hhm_age,relation_hhh,marital_status_hhm, literacy_hhm, education_high, hh_head_religion, hh_ethnic_group, high_exposed_mora) %>% 
+  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE),
+         hhm_age = as.numeric(hhm_age)) %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_mora, 
+     label = list(
+       hh_head_religion ~ "Religion",
+       hh_ethnic_group  ~ "Ethnc",
+       relation_hhh~"Relation with head",
+       weight_kg ~ "Weight (kg)",
+       height_cm ~ "Height (cm)",
+       hhm_sex ~ "Sex", 
+       hhm_age ~ "Age", 
+       marital_status_hhm ~ "Marital status", 
+       literacy_hhm ~ "Literacy" , 
+       education_high ~ "Education",
+       waz_who ~ "WAZ", 
+       haz_who ~ "HAZ", 
+       bmiz_who ~ "BMIZ"),
+    
+    type = list(
+       hhm_age ~ "continuous" 
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed") %>% 
+  add_overall(last=TRUE)
+
+
+```
+
+In the following, I restrict the sample to the households members that are of interest (under 20 years of age at round 3). 
+
+```{r}
+
+
+all_comb <- df_global_corrected %>%
+            select(hh_id, member_id, survey_year) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            tidyr::expand(member_id,survey_year)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_global_corrected %>%
+            select(hh_id, member_id, survey_year, affected_komen, treat_komen, weight_kg, height_cm, hhm_age, if_not_measured_why, haz_who, bmiz_who) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+  dplyr::right_join(all_comb, by=c("member_id","survey_year")) %>% 
+  mutate(treat_group = ifelse((survey_year < 2018) & (is.na(treat_komen)),0, treat_komen))
+
+lst_treat_people <- all_comb %>% filter(treat_group==1) %>% select(member_id) %>% distinct() %>% pull()
+
+all_comb <- all_comb %>% 
+  mutate(treat_group = ifelse((survey_year == 2018) & (is.na(treat_group)) & (member_id %in% lst_treat_people),1, ifelse( (survey_year == 2018) & (is.na(treat_group)) & !(member_id %in% lst_treat_people),0, treat_group)))
+
+panelView::panelview(haz_who ~ treat_group + weight_kg + hhm_age, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), 
+          type = "outcome", main = "", 
+          ylim = c(-5,5),xlab = "Year", ylab = "Nbr individuals")
+```
+```{r}
+panelView::panelview(haz_who ~ treat_group + weight_kg + hhm_age, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), 
+          type = "outcome", by.group = TRUE, cex.main = 20, cex.main.sub = 15,xlab = "Year", ylab = "Nbr individuals")
+```
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+
+panelView::panelview(1 ~ treat_group + weight_kg + height_cm, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), display.all = TRUE,
+          xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+```
+
+
+
+### Analysis of the evolution of the weight et height before and after disaster
+
+#### Komen
+
+```{r}
+
+
+tbl_data <- df_global_corrected %>% 
+  select(member_id,weight_kg,hhm_sex, waz_who, haz_who, bmiz_who, affected_komen, survey_round) %>% 
+    mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))
+
+t1 <- tbl_data %>% 
+      filter(survey_round=="1") %>% 
+      select(waz_who, haz_who, bmiz_who,hhm_sex, affected_komen) %>% 
+      tbl_strata(
+        strata = affected_komen,
+        .tbl_fun =
+          ~ .x %>%
+          tbl_summary(
+        by = hhm_sex, 
+          label = list(
+            waz_who ~ "WAZ", 
+            haz_who ~ "HAZ", 
+            bmiz_who ~ "BMIZ"
+         ),
+        statistic = list(
+          all_categorical() ~ "{n} ({p}%)",
+          all_continuous() ~ "{mean} ({sd})"
+        ),
+        missing_text = "(Missing)",
+        digits = everything() ~ c(2,2),
+        missing = "ifany"
+      ) %>%
+        add_n() %>% 
+        add_difference() %>% 
+        modify_column_hide(ci) %>%
+          # Modify the table header to provide a descriptive label
+          modify_header(label ~ ""),
+        .header = "**{strata}**, N = {n}",
+        .quiet = TRUE) 
+
+
+t2 <- tbl_data %>% 
+      filter(survey_round=="2") %>% 
+      select(waz_who, haz_who, bmiz_who,hhm_sex, affected_komen) %>% 
+      tbl_strata(
+        strata = affected_komen,
+        .tbl_fun =
+          ~ .x %>%
+          tbl_summary(
+        by = hhm_sex, 
+          label = list(
+            waz_who ~ "WAZ", 
+            haz_who ~ "HAZ", 
+            bmiz_who ~ "BMIZ"
+         ),
+        statistic = list(
+          all_categorical() ~ "{n} ({p}%)",
+          all_continuous() ~ "{mean} ({sd})"
+        ),
+        missing_text = "(Missing)",
+        digits = everything() ~ c(2,2),
+        missing = "ifany"
+      ) %>%
+        add_n() %>% 
+        add_difference() %>% 
+        modify_column_hide(ci) %>%
+          # Modify the table header to provide a descriptive label
+          modify_header(label ~ ""),
+        .header = "**{strata}**, N = {n}",
+        .quiet = TRUE) 
+
+
+t3 <- tbl_data %>% 
+      filter(survey_round=="3") %>% 
+      select(waz_who, haz_who, bmiz_who,hhm_sex, affected_komen) %>% 
+      tbl_strata(
+        strata = affected_komen,
+        .tbl_fun =
+          ~ .x %>%
+          tbl_summary(
+        by = hhm_sex, 
+          label = list(
+            waz_who ~ "WAZ", 
+            haz_who ~ "HAZ", 
+            bmiz_who ~ "BMIZ"
+         ),
+        statistic = list(
+          all_categorical() ~ "{n} ({p}%)",
+          all_continuous() ~ "{mean} ({sd})"
+        ),
+        missing_text = "(Missing)",
+        digits = everything() ~ c(2,2),
+        missing = "ifany"
+      ) %>%
+        add_n() %>% 
+        add_difference() %>% 
+        modify_column_hide(ci) %>%
+          # Modify the table header to provide a descriptive label
+          modify_header(label ~ ""),
+        .header = "**{strata}**, N = {n}",
+        .quiet = TRUE) 
+
+
+tbl_merge(
+  tbls = list(t1, t2, t3),
+  tab_spanner = c("**Round 1**", "**Round 2**","**Round 3**")
+)
+```
+```{r}
+df_global_corrected <- df_global_corrected %>% 
+  mutate(year = ifelse(survey_round=="1",2012,
+                       ifelse(survey_round=="2", 2015,
+                              ifelse(survey_round=="3",2018,NA))))
+
+tbl_data <- df_global_corrected %>% 
+  group_by(year,affected_komen) %>% 
+  summarise(mean_haz = mean(haz_who, na.rm=T),
+            mean_waz = mean(waz_who, na.rm=T),
+            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
+  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+                             "mean_waz" = "WAZ",
+                             "mean_bmiz" = "BMIZ"))
+
+
+tbl_data %>% 
+    ggplot(aes(x = year, y = depvar, color = affected_komen)) +
+    geom_line(linewidth=0.5)+
+    geom_point(size=0.7) +
+    geom_vline(xintercept = 2016, linetype="longdash", color="red") +
+    facet_wrap(vars(name), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "value",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/outcome_mean.pdf", width = 18, height = 7, units = "cm")
+
+
+# Using child sex
+
+tbl_data <- df_global_corrected %>% 
+  group_by(year,affected_komen, hhm_sex) %>% 
+  summarise(mean_haz = mean(haz_who, na.rm=T),
+            mean_waz = mean(waz_who, na.rm=T),
+            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
+  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+                             "mean_waz" = "WAZ",
+                             "mean_bmiz" = "BMIZ"))
+
+
+tbl_data %>% 
+    ggplot(aes(x = year, y = depvar, color = affected_komen, linetype=hhm_sex)) +
+    geom_line(linewidth=0.5)+
+    geom_point(size=0.7) +
+    geom_vline(xintercept = 2016, linetype="longdash", color="red") +
+    facet_wrap(vars(name), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "value",
+        color = "",
+        linetype="",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/outcome_mean_bysex.pdf", width = 18, height = 7, units = "cm")
+
+```
+
+
+```{r}
+
+# df_reg <- df_global %>%
+#   select(hh_id, member_id, survey_year, affected_komen, treat_komen, weight_kg, hhm_age,height_cm, if_not_measured_why) %>% 
+#   filter(hh_id %in% lst_menage) 
+#   
+
+panelView::panelview(weight_kg ~ treat_komen + height_cm, 
+          data = all_comb, index = c("member_id","survey_year"), 
+          type = "outcome", main = "", pre.post = TRUE)
+
+panelView::panelview(height_cm ~ treat_komen + weight_kg, 
+          data = all_comb, index = c("member_id","survey_year"), 
+          type = "bivariate", main = "", pre.post = TRUE,
+          style = c("c","l"))
+```
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+# niveau individus
+
+lst_menage = df_r1_hh %>% 
+      filter(hh_split_r2==0 & hh_split_r3==0 & interview_status_r3=="Complete") %>% 
+      select(hh_id) %>% 
+      pull()
+
+lst_ind <- df_r3_anthr2 %>% 
+            select(hh_id,member_id, hhm_status, hhm_age) %>%
+            filter(hh_id %in% lst_menage & hhm_status=="Both previous round and current round member" & hhm_age >= 3) %>% 
+            plyr::rbind.fill(df_r3_anthr1 %>% 
+            select(hh_id,member_id, hhm_status, hhm_age) %>% 
+            filter(hh_id %in% lst_menage & hhm_status=="Both previous round and current round member" & hhm_age < 20)) %>% 
+            # filter(hh_id %in% lst_menage) %>% 
+            # filter(hhm_status=="Both previous round and current round member") %>% 
+            # filter(hhm_age >= 3 & hhm_age < 20) %>% 
+            select(member_id) %>% 
+            pull()
+
+all_comb <- df_global %>%
+            dplyr::select(member_id, survey_year) %>% 
+            dplyr::filter(member_id %in% lst_ind) %>% 
+            expand(member_id,survey_year)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_global %>%
+            select(hh_id,hhm_id, member_id, survey_year, affected_upazila, treat_group, height_cm, weight_kg) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+  dplyr::right_join(all_comb) 
+
+panelView::panelview(1 ~ treat_group + weight_kg, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("member_id","survey_year"), display.all = TRUE,
+          xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, shade.post = TRUE, collapse.history = "TRUE", main = "Traitement status")
+```
+
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+df_r2_hh %>% 
+  distinct(hh_id_parent, .keep_all = TRUE) %>% 
+  # Selecting relevant variables
+  # , labels = c("No affected district", "Affected district"),
+   select(hh_split, affected_upazila) %>% 
+  mutate(sample='round 2',      
+         hh_split = factor(hh_split, levels = c("0", "1"),labels = c("No", "Yes"),ordered = TRUE), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+  
+  plyr::rbind.fill(
+    #For the sibling dataset
+    df_r3_hh %>%
+      distinct(hh_id_parent, .keep_all = TRUE) %>% 
+  # Selecting relevant variables
+   select(hh_split, affected_upazila) %>% 
+  #rename(affected_upazila=Affected_district) %>% 
+   mutate( 
+     sample='round 3',
+     hh_split = factor(hh_split, levels = c("0", "1"), labels = c("No", "Yes"), ordered = TRUE), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>%
+    tbl_strata(
+    strata = sample,
+    .tbl_fun =
+      ~ .x %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+      tbl_summary(
+    by = affected_upazila, 
+      label = list(
+        hh_split ~ "Household split (1=Yes, 0=No)"
+    #    height_cm ~ "height (cm)",
+    #    hhm_sex ~ "Sex",
+    #    hhm_age ~ "age (in year)",
+    #    relation_hhh ~ "relation with the head",
+    #    if_not_measured_why ~ "Why missing"
+    #    
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "always"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ ""),
+    # Add difference statistics to the table
+    #add_difference(),
+    .header = "**{strata}**, N = {n}") #%>%
+  #as_gt() %>%
+  #gt::gtsave('desc_table_summary.tex', path = here::here())
+```
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+# df_r2_hh %>% 
+#   #distinct(hh_id_parent, .keep_all = TRUE) %>% 
+#   # Selecting relevant variables
+#   # , labels = c("No affected district", "Affected district"),
+#    select(hh_split_bis, affected_upazila) %>% 
+#   mutate(sample='round 2',      
+#          hh_split_bis = factor(hh_split_bis, levels = c("0", "1"),labels = c("No", "Yes"),ordered = TRUE), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+#   
+#   plyr::rbind.fill(
+#     #For the sibling dataset
+#     df_r3_hh %>%
+#       #distinct(hh_id_parent, .keep_all = TRUE) %>% 
+#   # Selecting relevant variables
+#    select(hh_split_bis, affected_upazila) %>% 
+#   #rename(affected_upazila=Affected_district) %>% 
+#    mutate( 
+#      sample='round 3',
+#      hh_split_bis = factor(hh_split_bis, levels = c("0", "1"), labels = c("No", "Yes"), ordered = TRUE), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>%
+#     tbl_strata(
+#     strata = sample,
+#     .tbl_fun =
+#       ~ .x %>%
+#       # Generate a summary table using "tbl_summary" for the specified columns
+#       tbl_summary(
+#     by = affected_upazila, 
+#       label = list(
+#         hh_split_bis ~ "Household split infant (1=Yes, 0=No)"
+#     #    height_cm ~ "height (cm)",
+#     #    hhm_sex ~ "Sex",
+#     #    hhm_age ~ "age (in year)",
+#     #    relation_hhh ~ "relation with the head",
+#     #    if_not_measured_why ~ "Why missing"
+#     #    
+#      ),
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})"
+#     ),
+#     missing_text = "(Missing)",
+#     digits = everything() ~ c(0,2),
+#     missing = "always"
+#   ) %>%
+#       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+#       # Modify the table header to provide a descriptive label
+#       modify_header(label ~ ""),
+#     # Add difference statistics to the table
+#     #add_difference(),
+#     .header = "**{strata}**, N = {n}") #%>%
+#   #as_gt() %>%
+#   #gt::gtsave('desc_table_summary.tex', path = here::here())
+```
+
+
+
+### Interview status
+
+Theses tables summarize the interview status for hh survey in round 2 (before the TC Mora) and in round 3 (after the TC Mora).
+
+4690 hhs in round 3 have completed informations, I will take these to see how it affected. I should have at most 4690 household in R1 and R2 
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+
+df_r1_hh %>% 
+
+  # if you don't remove those who split between R1 and R2 you don't take into account the hh that split and disapear during R3.
+  filter(hh_split_r2==0 & hh_split_r3==0) %>% 
+  # Selecting relevant variables
+   select(interview_status_r2,interview_status_r3) %>% 
+  
+
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = interview_status_r3, 
+     label = list(
+       interview_status_r2 ~ "Status R2",
+       interview_status_r3 ~ "Status R3"),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "**Status R3**") 
+```
+
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+df_r1_hh %>% 
+
+  # Selecting relevant variables
+   select(interview_status_r2,interview_status_r3,affected_upazila) %>% 
+     mutate(
+       affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    tbl_strata(
+    strata = affected_upazila,
+    .tbl_fun =
+      ~ .x %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = interview_status_r3, 
+     label = list(
+       interview_status_r2 ~ "Status R2",
+       interview_status_r3 ~ "Status R3"),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ ""),
+    # Add difference statistics to the table
+    #add_difference(),
+    .header = "**{strata}**, N = {n}") #%>%
+```
+
+
+Here is 4603 (98.14 percent) hh for which information on the R2 is available. The remaining 87 didn't complete the information on R2 but complete the information on R1. The 65 remaining hh migrated in r2 but complete the survey in r3 (very strange). They were able to identify in r3 were the hh migrated too (where it go). I keep them in the data.
+
+R3 = 4690
+R2 = 4603-(87) = 4603
+R1 = 4690
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+df_r1_hh %>% 
+
+  # if you don't remove those who split between R1 and R2 you don't take into account the hh that split and disapear during R3.
+  filter(hh_split_r2==0 & hh_split_r3==0 & interview_status_r3=="Complete") %>% 
+
+mutate(affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  # Selecting relevant variables
+   select(interview_status_r2,affected_upazila, hh_size) %>% 
+  
+
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = interview_status_r2, 
+     label = list(
+       affected_upazila ~ "Affected_upazila",
+       hh_size ~ "hh size"
+       ),
+    
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    
+    missing_text = "(Missing)",
+    digits = list(hh_size ~ c(2, 2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "**Status R3**") 
+
+```
+
+
+
+
+### Hh's head religion
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+df_r1_hh %>% 
+   select(hh_head_religion, affected_upazila) %>% 
+  mutate(sample='round 1',      
+         hh_head_religion = factor(hh_head_religion), 
+         affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  
+  plyr::rbind.fill(df_r2_hh %>% 
+   select(hh_head_religion, affected_upazila) %>% 
+  mutate(sample='round 2',      
+         hh_head_religion = factor(hh_head_religion), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>% 
+  
+  plyr::rbind.fill(
+    df_r3_hh %>%
+  # Selecting relevant variables
+   select(hh_head_religion, affected_upazila) %>% 
+   mutate( 
+     sample='round 3',
+     hh_head_religion = factor(hh_head_religion), 
+     affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>%
+    tbl_strata(
+    strata = sample,
+    .tbl_fun =
+      ~ .x %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+      tbl_summary(
+    by = affected_upazila, 
+      label = list(
+        hh_head_religion ~ "hh head religion"
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "always"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ ""),
+    .header = "**{strata}**, N = {n}") 
+```
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+df_r1_hh %>% 
+  #distinct(hh_id_parent, .keep_all = TRUE) %>% 
+  # Selecting relevant variables
+  # , labels = c("No affected district", "Affected district"),
+   select(hh_head_religion, interview_status_r2, interview_status_r3) %>% 
+  mutate(
+         #interview_status = factor(interview_status),
+         interview_status_r2 = factor(interview_status_r2), 
+         interview_status_r3 = factor(interview_status_r3)) %>% 
+  
+      # Generate a summary table using "tbl_summary" for the specified columns
+  tbl_summary(
+  by = hh_head_religion, 
+      label = list(
+        hh_head_religion ~ "hh head religion",
+        #interview_status ~ "interview status round 1",
+        interview_status_r2 ~ "interview status round 2",
+        interview_status_r3 ~ "interview status round 3"
+    #    hhm_age ~ "age (in year)",
+    #    relation_hhh ~ "relation with the head",
+    #    if_not_measured_why ~ "Why missing"
+    #    
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "always"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) 
+  #as_gt() %>%
+  #gt::gtsave('desc_table_summary.tex', path = here::here())
+```
+
+
+### Hh head ethnicity
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+df_r1_hh %>% 
+   select(hh_ethnic_group, affected_upazila) %>% 
+  mutate(sample='round 1',      
+         hh_ethnic_group = factor(hh_ethnic_group), 
+         affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  
+  plyr::rbind.fill(df_r2_hh %>% 
+   select(hh_ethnic_group, affected_upazila) %>% 
+  mutate(sample='round 2',      
+         hh_ethnic_group = factor(hh_ethnic_group), affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>% 
+  
+  plyr::rbind.fill(
+    df_r3_hh %>%
+  # Selecting relevant variables
+   select(hh_ethnic_group, affected_upazila) %>% 
+   mutate( 
+     sample='round 3',
+     hh_ethnic_group = factor(hh_ethnic_group), 
+     affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))) %>%
+    tbl_strata(
+    strata = sample,
+    .tbl_fun =
+      ~ .x %>%
+      # Generate a summary table using "tbl_summary" for the specified columns
+      tbl_summary(
+    by = affected_upazila, 
+      label = list(
+        hh_ethnic_group ~ "hh head ethnic group"
+     ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = everything() ~ c(0,2),
+    missing = "always"
+  ) %>%
+      add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+      # Modify the table header to provide a descriptive label
+      modify_header(label ~ ""),
+    .header = "**{strata}**, N = {n}") 
+```
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+# 
+# df_r1_hh %>% 
+# 
+#   # Selecting relevant variables
+#    select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh,affected_upazila) %>% 
+#   mutate(sample='round 1') %>% 
+#   
+#   plyr::rbind.fill(
+#     #For the sibling dataset
+#     r2_data %>%
+# select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh, affected_upazila) %>% 
+#   #rename(affected_upazila=Affected_district) %>% 
+#    mutate( 
+#      sample='round 2',
+#      affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected district", "Affected district"), ordered = TRUE)) %>% 
+#   filter(!is.na(if_not_measured_why))) %>%
+# 
+#   tbl_strata(
+#     strata = sample,
+#     .tbl_fun =
+#       ~ .x %>%
+#       # Generate a summary table using "tbl_summary" for the specified columns
+#       tbl_summary(
+#     by = affected_upazila, 
+#      label = list(
+#        weight_kg ~ "weight (kg)",
+#        height_cm ~ "height (cm)",
+#        hhm_sex ~ "Sex",
+#        hhm_age ~ "age (in year)",
+#        relation_hhh ~ "relation with the head",
+#        if_not_measured_why ~ "Why missing"
+#        
+#     ),
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})"
+#     ),
+#     missing_text = "(Missing)",
+#     digits = everything() ~ c(2,2),
+#     missing = "always"
+#   ) %>%
+#       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+#       # Modify the table header to provide a descriptive label
+#       modify_header(label ~ "Characteristics of children"),
+#     # Add difference statistics to the table
+#     #add_difference(),
+#     .header = "**{strata}**, N = {n}") #%>%
+#   #as_gt() %>%
+#   #gt::gtsave('desc_table_summary.tex', path = here::here())
+```
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+lst_menage = df_r1_hh %>% 
+      filter(hh_split_r2==0 & hh_split_r3==0) %>% 
+      select(hh_id) %>% 
+      pull()
+
+all_comb <- df_r1_hh %>%
+            select(hh_id,survey_round) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            plyr::rbind.fill(df_r2_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            plyr::rbind.fill(df_r3_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            expand(hh_id,survey_round)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_r1_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year) %>% 
+          filter(hh_id %in% lst_menage)%>% 
+          plyr::rbind.fill(df_r2_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year)%>% 
+          filter(hh_id %in% lst_menage))%>% 
+          plyr::rbind.fill(df_r3_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year)%>% 
+          filter(hh_id %in% lst_menage))%>% 
+  dplyr::right_join(all_comb) %>% 
+  mutate(
+         affected_upazila = ifelse(is.na(hh_size), NA, affected_upazila),
+         treat_group = ifelse(is.na(hh_size), NA, treat_group))
+# survey_year = ifelse(survey_round==1,2011,
+#                               ifelse(survey_round==2,2015,
+#                                      ifelse(survey_round==3,2018,NA))),
+
+panelView::panelview( 1 ~ treat_group, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE,
+          xlab = "Nbr household", ylab = "", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "Traitement status")
+```
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+# df_global %>% 
+#   mutate(survey_round=as.numeric(survey_round)) %>% 
+#   filter(hh_split==0)
+#   group_by(member_id) %>% 
+#   summarise(n=n(), matot= sum(survey_round)) 
+
+# used expand to create 
+# Na because unborn vs NA
+# niveau ménage
+
+lst_menage = df_r1_hh %>% 
+      filter(hh_split_r2==0 & hh_split_r3==0 & interview_status_r3=="Complete") %>% 
+      select(hh_id) %>% 
+      pull()
+
+all_comb <- df_r1_hh %>%
+            select(hh_id,survey_round) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            plyr::rbind.fill(df_r2_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            plyr::rbind.fill(df_r3_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            expand(hh_id,survey_round)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_r1_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year) %>% 
+          filter(hh_id %in% lst_menage)%>% 
+          plyr::rbind.fill(df_r2_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year)%>% 
+          filter(hh_id %in% lst_menage))%>% 
+          plyr::rbind.fill(df_r3_hh %>%
+          select(hh_id,survey_round, hh_size, affected_upazila,treat_group, survey_year)%>% 
+          filter(hh_id %in% lst_menage))%>% 
+  dplyr::right_join(all_comb) %>% 
+  mutate(
+         affected_upazila = ifelse(is.na(hh_size), NA, affected_upazila),
+         treat_group = ifelse(is.na(hh_size), NA, treat_group))
+# survey_year = ifelse(survey_round==1,2011,
+#                               ifelse(survey_round==2,2015,
+#                                      ifelse(survey_round==3,2018,NA))),
+
+panelView::panelview( 1 ~ treat_group, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE,
+          xlab = "Year", ylab = "Nbr household", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, shade.post = TRUE, collapse.history = "TRUE", main = "Traitement status")
+```
+
+## Study Variables
+
+### Socio-demographic variables
+
+### Filtering to obtained only needed
+
+
+#### Kid Sex/gender
+
+```{r eval=FALSE, warning=FALSE, include=FALSE, results='hide'}
+
+#
+# r1_data %>%
+#
+#   # Selecting relevant variables
+#   select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh, affected_upazila) %>%
+#   #rename(affected_upazila=Affected_district) %>%
+#    mutate(affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected district", "Affected district"), ordered = TRUE)) %>%
+#   # Generate a summary table using "tbl_summary" for the specified columns
+#   tbl_summary(
+#     by = affected_upazila,
+#      label = list(
+#        weight_kg ~ "weight (kg)",
+#        height_cm ~ "height (cm)",
+#        hhm_sex ~ "Sex",
+#        hhm_age ~ "age (in year)",
+#        relation_hhh ~ "relation with the head",
+#        if_not_measured_why ~ "Why missing"
+#
+#     ),
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})"
+#     ),
+#     missing_text = "(Missing)",
+#     digits = everything() ~ c(2,2),
+#     missing = "always"
+#   ) %>%
+#     modify_caption("**R1**") %>%
+#   # Modify the table header to provide a descriptive label
+#   modify_header(label ~ "Affected Upazila") %>%
+#   add_overall() %>%
+#   add_n()%>%
+#   # Add difference statistics to the table
+#   add_difference()
+
+#
+#
+# r1_data %>%
+#
+#   # Selecting relevant variables
+#    select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh,affected_upazila) %>%
+#   mutate(sample='round 1') %>%
+#
+#   plyr::rbind.fill(
+#     #For the sibling dataset
+#     r2_data %>%
+# select(weight_kg,height_cm,if_not_measured_why,hhm_sex,hhm_age,relation_hhh, affected_upazila) %>%
+#   #rename(affected_upazila=Affected_district) %>%
+#    mutate(
+#      sample='round 2',
+#      affected_upazila = factor(affected_upazila, levels = c("0", "1"), labels = c("No affected district", "Affected district"), ordered = TRUE)) %>%
+#   filter(!is.na(if_not_measured_why))) %>%
+#
+#   tbl_strata(
+#     strata = sample,
+#     .tbl_fun =
+#       ~ .x %>%
+#       # Generate a summary table using "tbl_summary" for the specified columns
+#       tbl_summary(
+#     by = affected_upazila,
+#      label = list(
+#        weight_kg ~ "weight (kg)",
+#        height_cm ~ "height (cm)",
+#        hhm_sex ~ "Sex",
+#        hhm_age ~ "age (in year)",
+#        relation_hhh ~ "relation with the head",
+#        if_not_measured_why ~ "Why missing"
+#
+#     ),
+#     statistic = list(
+#       all_categorical() ~ "{n} ({p}%)",
+#       all_continuous() ~ "{mean} ({sd})"
+#     ),
+#     missing_text = "(Missing)",
+#     digits = everything() ~ c(2,2),
+#     missing = "always"
+#   ) %>%
+#       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>%
+#       # Modify the table header to provide a descriptive label
+#       modify_header(label ~ "Characteristics of children"),
+#     # Add difference statistics to the table
+#     #add_difference(),
+#     .header = "**{strata}**, N = {n}") #%>%
+#   #as_gt() %>%
+#   #gt::gtsave('desc_table_summary.tex', path = here::here())
+
+```
