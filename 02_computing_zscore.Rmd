@@ -58,7 +58,7 @@ library(Statamarkdown)
 cd "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate"
 capture mkdir ".\input\zanthro"
 cd ".\input\zanthro"
-net get dm0004_1, from(http://www.stata-journal.com/software/sj13-2/)
+net get dm0004_1, from(http://www.stata- journal.com/software/sj13-2/)
 
 ########################################################################################################################################################
 ########################################## df global ###################################################################################################
@@ -68,9 +68,9 @@ net get dm0004_1, from(http://www.stata-journal.com/software/sj13-2/)
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global.xlsx", firstrow(variables) replace
@@ -84,9 +84,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global_corrected.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\df_global_corrected.xlsx", firstrow(variables) replace
@@ -100,9 +100,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_underfive.xlsx", firstrow(variables) replace
@@ -112,9 +112,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r1_overfive.xlsx", firstrow(variables) replace
@@ -128,9 +128,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(age_month) gender(hhm_sex) gencode(m=male, f=female) ageunit(month)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(age_month) gender(hhm_sex) gencode(m=male, f=female) ageunit(month)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(age_month) gender(hhm_sex) gencode(m=male, f=female) ageunit(month)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_underfive.xlsx", firstrow(variables) replace
@@ -140,9 +140,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r2_overfive.xlsx", firstrow(variables) replace
@@ -157,9 +157,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_underfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_underfive.xlsx", firstrow(variables) replace
@@ -169,9 +169,9 @@ export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\ou
 import excel "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_overfive.xlsx", sheet("Sheet1") firstrow clear
 
 ### Created the zscore for the df_global
-egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
-egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year)
+egen waz_who = zanthro(weight_kg,wa,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen haz_who = zanthro(height_cm,ha,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
+egen bmiz_who = zanthro(bmi,ba,WHO), xvar(hhm_age) gender(hhm_sex) gencode(m=male, f=female) ageunit(year) nocutoff
 
 ### Exporting results
 export excel using "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate\output\data\r3_overfive.xlsx", firstrow(variables) replace

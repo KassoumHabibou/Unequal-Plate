@@ -2826,9 +2826,9 @@ panelView::panelview(haz_who ~ treat_group + weight_kg + hhm_age, gridOff = TRUE
 
 
 ```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+df_global_corrected <- df_global_corrected %>% filter(hhm_interest==1)
 
-
-panelView::panelview(1 ~ treat_group + weight_kg + height_cm, gridOff = TRUE, by.timing = TRUE, data = all_comb, index = c("member_id","survey_year"), display.all = TRUE,
+panelView::panelview(1 ~ treat_komen + haz_who, gridOff = TRUE, by.timing = TRUE, data = df_global_corrected, index = c("member_id","survey_year"), display.all = TRUE,
           xlab = "Year", ylab = "Nbr individuals", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
 ```
 
@@ -2840,40 +2840,54 @@ panelView::panelview(1 ~ treat_group + weight_kg + height_cm, gridOff = TRUE, by
 
 ```{r}
 
-
+# Prepare the data by selecting relevant columns and converting 'affected_komen' to a factor
 tbl_data <- df_global_corrected %>% 
-  select(member_id,weight_kg,hhm_sex, waz_who, haz_who, bmiz_who, affected_komen, survey_round) %>% 
-    mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))
+  select(member_id, weight_kg, hhm_sex, waz_who, haz_who, bmiz_who, affected_komen, survey_round) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE))
 
+# Create summary table for Survey Round 1, stratified by 'affected_komen' status
 t1 <- tbl_data %>% 
       filter(survey_round=="1") %>% 
-      select(waz_who, haz_who, bmiz_who,hhm_sex, affected_komen) %>% 
+      select(waz_who, haz_who, bmiz_who, hhm_sex, affected_komen) %>% 
       tbl_strata(
+        # Stratify the table by 'affected_komen' status
         strata = affected_komen,
         .tbl_fun =
           ~ .x %>%
           tbl_summary(
-        by = hhm_sex, 
-          label = list(
-            waz_who ~ "WAZ", 
-            haz_who ~ "HAZ", 
-            bmiz_who ~ "BMIZ"
-         ),
-        statistic = list(
-          all_categorical() ~ "{n} ({p}%)",
-          all_continuous() ~ "{mean} ({sd})"
-        ),
-        missing_text = "(Missing)",
-        digits = everything() ~ c(2,2),
-        missing = "ifany"
-      ) %>%
-        add_n() %>% 
-        add_difference() %>% 
-        modify_column_hide(ci) %>%
-          # Modify the table header to provide a descriptive label
-          modify_header(label ~ ""),
+            # Split summary by sex
+            by = hhm_sex, 
+            # Rename columns for better readability
+            label = list(
+              waz_who ~ "WAZ", 
+              haz_who ~ "HAZ", 
+              bmiz_who ~ "BMIZ"
+            ),
+            # Define statistical representations
+            statistic = list(
+              # For categorical variables: show count and percentage
+              all_categorical() ~ "{n} ({p}%)",
+              # For continuous variables: show mean and standard deviation
+              all_continuous() ~ "{mean} ({sd})"
+            ),
+            missing_text = "(Missing)",
+            # Set digits to 2 decimal places for all columns
+            digits = everything() ~ c(2,2),
+            # Include missing data if any
+            missing = "ifany"
+          ) %>%
+            # Add sample size
+            add_n() %>% 
+            # Add difference between groups
+            add_difference() %>% 
+            # Hide confidence interval column
+            modify_column_hide(ci) %>%
+            # Clear default label header
+            modify_header(label ~ ""),
+        # Custom header for each stratum
         .header = "**{strata}**, N = {n}",
-        .quiet = TRUE) 
+        .quiet = TRUE
+      ) 
 
 
 t2 <- tbl_data %>% 
@@ -2938,20 +2952,28 @@ t3 <- tbl_data %>%
         .quiet = TRUE) 
 
 
+# Merge the three survey round tables into a single comprehensive table
 tbl_merge(
+  # Combine the tables created for each survey round
   tbls = list(t1, t2, t3),
+  # Add spanning headers for each round
   tab_spanner = c("**Round 1**", "**Round 2**","**Round 3**")
 )
 ```
+
+
 ```{r}
+
 df_global_corrected <- df_global_corrected %>% 
   mutate(year = ifelse(survey_round=="1",2012,
                        ifelse(survey_round=="2", 2015,
                               ifelse(survey_round=="3",2018,NA))))
-
+# 
 ```
 
-##### Komen
+
+#### Komen
+##### Baseline
 ```{r}
 # All
 ## Affected Komen
@@ -2970,14 +2992,16 @@ df_global_corrected %>%
               upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
               upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
     mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% pivot_longer(cols = lower_haz:lower_bmiz, names_to = "lower",values_to = "CI2.5") %>%  pivot_longer(cols = upper_haz:upper_bmiz, names_to = "upper",values_to = "CI97.5") %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
   mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
     ggplot(aes(x = year, y = depvar, color = affected_komen,ymin = `CI2.5`, ymax = `CI97.5`)) +
-    geom_point(size=0.7) +
-    geom_line(linewidth=0.5)+
-  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
     facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
@@ -2989,26 +3013,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_affected_komen.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/komen/outcome_mean_affected_komen.pdf", width = 18, height = 7, units = "cm")
 
 
 ## At least affected   
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_komen) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  ungroup() %>% 
-  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_komen)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_komen,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3018,24 +3053,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_exposed_at_least_komen.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/komen/outcome_mean_exposed_at_least_komen.pdf", width = 18, height = 7, units = "cm")
     
 ## highly exposed   
 df_global_corrected %>% 
   group_by(year,high_exposed_komen) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_komen)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_komen,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3045,25 +3092,44 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_high_exposed_komen.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/komen/outcome_mean_high_exposed_komen.pdf", width = 18, height = 7, units = "cm")
     
+
+
+```
+
+##### Baseline (by child sex)
+
+```{r}
 # Using child sex
 ## Affected
 df_global_corrected %>% 
   group_by(year,affected_komen, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar")%>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = affected_komen, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = affected_komen, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3074,25 +3140,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_affected_komen.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_affected_komen.pdf", width = 18, height = 7, units = "cm")
       
       
 ## At least affected
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_komen, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_komen, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_komen, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3103,24 +3181,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_exposed_at_least_komen.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_exposed_at_least_komen.pdf", width = 18, height = 7, units = "cm")
       
 ## Highly affected
 df_global_corrected %>% 
   group_by(year,high_exposed_komen, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_komen, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_komen, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2015, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3131,32 +3221,390 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_high_exposed_komen.pdf", width = 18, height = 7, units = "cm")
-
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_high_exposed_komen.pdf", width = 18, height = 7, units = "cm")
 ```
 
 
+##### Gaps (Female - Male)
+
+```{r}
+
+# Affected_komen
+df_global_corrected %>% 
+  group_by(year, affected_komen) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_komen = unique(splitted_df$affected_komen),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_komen = unique(splitted_df$affected_komen),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_komen = unique(splitted_df$affected_komen),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_komen = unique(splitted_df$affected_komen),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_komen = unique(splitted_df$affected_komen),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_komen = unique(splitted_df$affected_komen),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = affected_komen, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2015, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_affected_komen_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+# exposed_at_least_zero_komen      
+df_global_corrected %>% 
+  group_by(year, exposed_at_least_zero_komen) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_komen, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2015, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_exposed_at_least_zero_komen_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+
+# high_exposed_komen      
+df_global_corrected %>% 
+  group_by(year, high_exposed_komen) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_komen = unique(splitted_df$high_exposed_komen),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_komen = unique(splitted_df$high_exposed_komen),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_komen = unique(splitted_df$high_exposed_komen),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_komen = unique(splitted_df$high_exposed_komen),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_komen = unique(splitted_df$high_exposed_komen),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_komen = unique(splitted_df$high_exposed_komen),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = high_exposed_komen, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2015, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/komen/outcome_mean_bysex_high_exposed_komen_gaps.pdf", width = 18, height = 7, units = "cm")
+```
 
 
-##### Roanu
+#### Roanu
+##### Baseline
 ```{r}
 # All
 ## Affected roanu
 df_global_corrected %>% 
   group_by(year,affected_roanu) %>% 
-  summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+    summarise(mean_haz = mean(haz_who, na.rm=T),
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = affected_roanu)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = affected_roanu,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3166,25 +3614,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_affected_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_affected_roanu.pdf", width = 18, height = 7, units = "cm")
 
 
 ## At least affected   
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_roanu) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_roanu)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_roanu,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3194,24 +3654,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_exposed_at_least_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_exposed_at_least_roanu.pdf", width = 18, height = 7, units = "cm")
     
 ## highly exposed   
 df_global_corrected %>% 
   group_by(year,high_exposed_roanu) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_roanu)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_roanu,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3221,25 +3693,43 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
     
+
+```
+
+##### Baseline by sex
+
+```{r}
 # Using child sex
 ## Affected
 df_global_corrected %>% 
   group_by(year,affected_roanu, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = affected_roanu, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = affected_roanu, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3250,25 +3740,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_affected_roanu.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_affected_roanu.pdf", width = 18, height = 7, units = "cm")
       
       
 ## At least affected
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_roanu, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_roanu, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_roanu, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3279,24 +3781,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_exposed_at_least_roanu.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_exposed_at_least_roanu.pdf", width = 18, height = 7, units = "cm")
       
 ## Highly affected
 df_global_corrected %>% 
   group_by(year,high_exposed_roanu, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_roanu, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_roanu, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2016, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3307,50 +3821,390 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+
 
 ```
 
+##### Gaps (Female - Male)
 
 ```{r}
+
+# Affected_roanu
 df_global_corrected %>% 
-    group_by(year,high_exposed_mora, hhm_sex) %>% 
-    summarise(mean_haz = mean(haz_who, na.rm=T),
-              mean_waz = mean(waz_who, na.rm=T),
-              mean_bmiz = mean(bmiz_who, na.rm=T),
-              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
-              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
-              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
-              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
-              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
-  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
-                             "mean_waz" = "WAZ",
-                             "mean_bmiz" = "BMIZ"))
+  group_by(year, affected_roanu) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_roanu = unique(splitted_df$affected_roanu),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_roanu = unique(splitted_df$affected_roanu),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_roanu = unique(splitted_df$affected_roanu),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_roanu = unique(splitted_df$affected_roanu),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_roanu = unique(splitted_df$affected_roanu),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_roanu = unique(splitted_df$affected_roanu),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = affected_roanu, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2016, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_affected_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+# exposed_at_least_zero_roanu      
+df_global_corrected %>% 
+  group_by(year, exposed_at_least_zero_roanu) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_roanu, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2016, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_exposed_at_least_zero_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+
+# high_exposed_roanu      
+df_global_corrected %>% 
+  group_by(year, high_exposed_roanu) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = high_exposed_roanu, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2016, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_high_exposed_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
 ```
 
-
-
-##### Mora
+#### Mora
+##### Baseline
 ```{r}
 # All
 ## Affected mora
 df_global_corrected %>% 
   group_by(year,affected_mora) %>% 
-  summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+    summarise(mean_haz = mean(haz_who, na.rm=T),
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = affected_mora)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = affected_mora,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3360,25 +4214,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_affected_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/outcome_mean_affected_mora.pdf", width = 18, height = 7, units = "cm")
 
 
 ## At least affected   
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_mora) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_mora)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_mora,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3388,24 +4254,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_exposed_at_least_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/outcome_mean_exposed_at_least_mora.pdf", width = 18, height = 7, units = "cm")
     
 ## highly exposed   
 df_global_corrected %>% 
   group_by(year,high_exposed_mora) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_mora)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_mora,ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(aes(ymin = CI2.5, ymax = CI97.5), lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3415,25 +4293,41 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/outcome_mean_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/outcome_mean_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
     
+```
+##### Baseline by sex
+
+```{r}
 # Using child sex
 ## Affected
 df_global_corrected %>% 
   group_by(year,affected_mora, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = affected_mora, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = affected_mora, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3444,25 +4338,37 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_affected_mora.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_affected_mora.pdf", width = 18, height = 7, units = "cm")
       
       
 ## At least affected
 df_global_corrected %>% 
   group_by(year,exposed_at_least_zero_mora, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>%
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_mora, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_mora, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3473,24 +4379,36 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_exposed_at_least_mora.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_exposed_at_least_mora.pdf", width = 18, height = 7, units = "cm")
       
 ## Highly affected
 df_global_corrected %>% 
   group_by(year,high_exposed_mora, hhm_sex) %>% 
   summarise(mean_haz = mean(haz_who, na.rm=T),
-            mean_waz = mean(waz_who, na.rm=T),
-            mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-  mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
-  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "name",values_to = "depvar") %>% 
-  mutate(name = recode(name, "mean_haz" = "HAZ" ,
+              mean_waz = mean(waz_who, na.rm=T),
+              mean_bmiz = mean(bmiz_who, na.rm=T),
+              # lower int
+              lower_haz = mean(haz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()), 
+              lower_waz = mean(waz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()),
+              lower_bmiz = mean(bmiz_who, na.rm=T) - qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n()),
+              # Upper int
+              upper_haz = mean(haz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(haz_who, na.rm=T)/sqrt(n()),
+              
+              upper_waz = mean(waz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(waz_who, na.rm=T)/sqrt(n()), 
+              upper_bmiz = mean(bmiz_who, na.rm=T) + qt(1- 0.05/2, (n() - 1))*sd(bmiz_who, na.rm=T)/sqrt(n())) %>% 
+    mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+  pivot_longer(cols = mean_haz:mean_bmiz, names_to = "outcome",values_to = "depvar") %>% 
+  mutate(CI2.5 = ifelse(outcome=="mean_haz",lower_haz,ifelse(outcome=="mean_waz",lower_waz,ifelse(outcome=="mean_bmiz",lower_bmiz,NA))), 
+      CI97.5 = ifelse(outcome=="mean_haz",upper_haz,ifelse(outcome=="mean_waz",upper_waz,ifelse(outcome=="mean_bmiz",upper_bmiz,NA)))) %>% 
+  mutate(outcome = recode(outcome, "mean_haz" = "HAZ" ,
                              "mean_waz" = "WAZ",
                              "mean_bmiz" = "BMIZ")) %>% 
-    ggplot(aes(x = year, y = depvar, color = high_exposed_mora, linetype=hhm_sex)) +
-    geom_line(linewidth=0.5)+
-    geom_point(size=0.7) +
+    ggplot(aes(x = year, y = depvar, color = high_exposed_mora, linetype=hhm_sex, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
     geom_vline(xintercept = 2017, linetype="longdash", color="red") +
-    facet_wrap(vars(name), scales = "free_x") +
+    facet_wrap(vars(outcome), scales = "free_x") +
     scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
     labs(
         x = "year",
@@ -3501,19 +4419,360 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/outcome_mean_bysex_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
 
 ```
 
-#### Diff by sex
+##### Gaps (Female - Male)
+
 ```{r}
+
+# Affected_mora
 df_global_corrected %>% 
-    group_by(year,high_exposed_mora, hhm_sex) %>% 
-    summarise(mean_haz = mean(haz_who, na.rm=T),
-              mean_waz = mean(waz_who, na.rm=T),
-              mean_bmiz = mean(bmiz_who, na.rm=T)) %>% 
-    mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% pivot_wider(names_from = hhm_sex, values_from = mean_haz:mean_bmiz)
+  group_by(year, affected_mora) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_mora = unique(splitted_df$affected_mora),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_mora = unique(splitted_df$affected_mora),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        affected_mora = unique(splitted_df$affected_mora),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_mora = unique(splitted_df$affected_mora),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_mora = unique(splitted_df$affected_mora),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          affected_mora = unique(splitted_df$affected_mora),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = affected_mora, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2017, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_affected_mora_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+# exposed_at_least_zero_mora      
+df_global_corrected %>% 
+  group_by(year, exposed_at_least_zero_mora) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = exposed_at_least_zero_mora, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2017, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_exposed_at_least_zero_mora_gaps.pdf", width = 18, height = 7, units = "cm")
+
+      
+
+# high_exposed_mora      
+df_global_corrected %>% 
+  group_by(year, high_exposed_mora) %>% 
+  group_split() %>%  
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+      t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+      
+      bind_rows(
+        tibble(
+        estimate_female = t_test_haz$estimate[1],
+        estimate_male = t_test_haz$estimate[2],
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_mora = unique(splitted_df$high_exposed_mora),
+        outcome = "HAZ"
+      ),
+      tibble(
+        estimate_female = t_test_bmiz$estimate[1],
+        estimate_male = t_test_bmiz$estimate[2],
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_mora = unique(splitted_df$high_exposed_mora),
+        outcome = "BMIZ"
+      ),
+      tibble(
+        estimate_female = t_test_waz$estimate[1],
+        estimate_male = t_test_waz$estimate[2],
+        depvar = t_test_waz$estimate[1] - t_test_waz$estimate[2],
+        CI2.5 = t_test_waz$conf.int[1],
+        CI97.5 = t_test_waz$conf.int[2],
+        
+        # Add more context
+        year = unique(splitted_df$year),
+        high_exposed_mora = unique(splitted_df$high_exposed_mora),
+        outcome = "WAZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_mora = unique(splitted_df$high_exposed_mora),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_mora = unique(splitted_df$high_exposed_mora),
+          outcome = "BMIZ"
+        ),
+        tibble(
+          estimate_female = NA,
+          estimate_male = NA,
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          year = unique(splitted_df$year),
+          high_exposed_mora = unique(splitted_df$high_exposed_mora),
+          outcome = "WAZ"
+        ))
+    }
+  }) %>%
+    mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>%
+    ggplot(aes(x = year, y = depvar, color = high_exposed_mora, ymin = `CI2.5`, ymax = `CI97.5`)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+  geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+   geom_hline(yintercept = 0, linetype="dashed", color="black") +
+    geom_vline(xintercept = 2017, linetype="longdash", color="red") +
+   facet_wrap(vars(outcome), scales = "free_x") +
+    scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+    labs(
+        x = "year",
+        y = "gap (female - male)",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) +
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+      ggsave("output/img/stat desc/mora/outcome_mean_bysex_high_exposed_mora_gaps.pdf", width = 18, height = 7, units = "cm")
 ```
+
+### Diff by sex
+#### Komen
+
 
 
 ```{r}
