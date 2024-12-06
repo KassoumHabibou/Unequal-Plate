@@ -4,3 +4,526 @@ author: "IBRAHIM KASSOUM Habibou"
 date: "`r Sys.Date()`"
 output: html_document
 ---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error=FALSE)
+rm(list=ls())
+```
+
+
+
+## Importing library
+
+```{r Package needed, results = "hide", include = FALSE, warning=FALSE, echo = TRUE}
+
+
+## Importing library
+### List of required packages
+required_packages <- c("tidyverse",'lfe', "dplyr", "tidyr","lubridate", "readxl","foreign","arsenal","stargazer","multcomp")
+
+
+# Check if packages are installed
+missing_packages <- setdiff(required_packages, installed.packages()[,"Package"])
+
+### Install missing packages
+if (length(missing_packages) > 0) {
+  install.packages(missing_packages)
+}
+
+### Load all packages
+lapply(required_packages, library, character.only = TRUE)
+
+
+# Source functions from external file
+source("function_file.R")
+```
+
+## Importing Dataset
+```{r, results='hide', include = FALSE, warning=FALSE, echo = FALSE}
+
+df_global_corrected <- read_excel("output/data/df_global_corrected.xlsx") %>% 
+  mutate(year = ifelse(survey_round=="1",2012,
+                       ifelse(survey_round=="2", 2015,
+                              ifelse(survey_round=="3",2018,NA))),
+         hhm_sex = as.factor(ifelse(hhm_sex=="male",1,0)),
+         time_bi = as.factor(ifelse(survey_round=="3",1,0)),
+         
+         affected_komen = as.factor(affected_komen),
+         exposed_at_least_zero_komen = as.factor(exposed_at_least_zero_komen),
+         high_exposed_komen = as.factor(high_exposed_komen),
+        
+         affected_roanu = as.factor(affected_roanu),
+         exposed_at_least_zero_roanu = as.factor(exposed_at_least_zero_roanu),
+         high_exposed_roanu = as.factor(high_exposed_roanu),
+         
+         affected_mora = as.factor(affected_mora),
+         exposed_at_least_zero_mora = as.factor(exposed_at_least_zero_mora),
+         high_exposed_mora = as.factor(high_exposed_mora)) %>%
+  filter(hhm_interest==1)
+```
+
+## Komen
+### First estimate
+```{r}
+
+######################## First estimate ##########################################
+
+list_expvar = c("affected_komen","exposed_at_least_zero_komen","high_exposed_komen")
+list_outcome = c("haz_who","bmiz_who")
+# Get estimates for each expvar variables using the function getEstimateGlobalwithemp_prox
+mainResults <- map_dfr(list_outcome, function(depvar) {
+    intResults <- map_dfr(list_expvar, function(expvar) {
+      bind_rows(
+        getEstimateGlobal(depvar, expvar, df_global_corrected)
+      )
+    })
+})
+# Extract results for "aff. komen" models
+m1 <- mainResults$Results_base[[1]]
+m2 <- mainResults$Results_base[[2]]
+m3 <- mainResults$Results_base[[3]]
+
+# Extract results for "At lst zero komen" models
+m4 <- mainResults$Results_base[[4]]
+m5 <- mainResults$Results_base[[5]]
+m6 <- mainResults$Results_base[[6]]
+
+# Extract results for "Hgh exp. komen" models
+m7 <- mainResults$Results_base[[7]]
+m8 <- mainResults$Results_base[[8]]
+m9 <- mainResults$Results_base[[9]]
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m1, m2, m3, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          
+          keep = c("time_bi1", "affected_komen1", "hhm_sex1", "hhm_age", "hh_size", "marital_status_hhmmarried", "marital_status_hhmseparated/deserted","marital_status_hhmunmarried (never married)", "literacy_hhmcan read and write", "literacy_hhmcan sign only", "literacy_hhmcannot read and write","education_highcompleted class 2", "education_highcompleted class 3", "education_highcompleted class 4", "education_highcompleted class 5", "education_highcompleted class 6", "education_highcompleted class 7", "education_highcompleted class 8", "education_highcompleted class 9", "education_highcompleted class i", "education_highcompleted hsc/alim", "education_highcompleted ssc/dakhil", "education_highhsc candidate", "education_highnever attended school","education_highother","education_highothers(specify)","education_highpreschool (mosque based)","education_highreads in class i", "education_highssc candidate","hh_head_religionHindu","hh_head_religionMuslim","hh_head_religionOther(specify)","hh_ethnic_groupBihari","hh_ethnic_groupMru(Murong)","hh_ethnic_groupOthers","hh_ethnic_groupSawtal","hh_ethnic_groupTribal","hh_ethnic_groupTripura","nbr_female","nbr_underfive","nbr_yngchldrn_5_10","nbr_teenager_10_20","nbr_adults_20_65","nbr_female_underfive","nbr_female_yngchldrn_5_10","nbr_female_teenager_10_20","nbr_female_adults_20_65","time_bi:affected_komen"),
+
+          covariate.labels = c('afterTC','affectedTC', 'child sexe  (ref. category: female)  &&&\\ -male','child age',"hh. size", "marital status (ref. category: divorced) &&&\\ - married", "- separated/deserted","- unmarried (never married)", "literacy (ref. category: can read  only) &&&\\ - can read and write", "- can sign only", "- cannot read and write","education (ref. category: ba/bsc pass/fazil) &&&\\ - completed class 2", "- completed class 3", "- completed class 4", "- completed class 5", "- completed class 6", "- completed class 7", "- completed class 8", "- completed class 9", "- completed class i", "- completed hsc/alim", "- completed ssc/dakhil", "- hsc candidate", "- never attended school","- other","- others(specify)","- preschool (mosque based)","- reads in class i", "- ssc candidate", "hh. head religion (ref. category: christian) &&&\\ -  Hindu","- Muslim","- Other(specify)", "- Bihari","- Mru(Murong)","- Others", "- Sawtal","- Tribal","- Tripura","hh. composition: &&&\\ - nbr female", "- nbr underfive","- nbr yngchldrn (5-10 yrs)","- nbr teenager (10-20 yrs)","- nbr adults (20-65 yrs)","- nbr female underfive", "- nbr female yngchldrn (5-10 yrs)","- nbr female teenager (10-20 yrs)","- nbr female adults (20-65 yrs)",'afterTC * affectedTC'),
+
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/komen/Aff. komen_reg.text", sep = ""), notes = "Clustered std error")
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m4, m5, m6, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", "Hgh exp. komen"),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/komen/At lst zero komen_reg.text", sep = ""), notes = "Clustered std error")
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m7, m8, m9, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/komen/Hgh exp. komen_reg.text", sep = ""), notes = "Clustered std error")
+
+```
+
+### Cross effect 
+```{r}
+
+######################## cross effect  ################################################
+
+
+# Use map_dfr to iterate over each outcome and estimate effects for different exposure variables
+mainResults <- map_dfr(list_outcome, function(depvar) {    
+  intResults <- map_dfr(list_expvar, function(expvar) {
+    bind_rows(
+      getEstimateCross(depvar, expvar, df_global_corrected) 
+    )
+  })
+})
+
+# Perform data manipulation on the results
+mainResults <- mainResults %>% 
+  mutate(
+    # Recode variables for better labeling
+    estimate = recode(
+      estimate,
+      Female = "female",
+      Male = "male",
+      Gap = "gap (male - female)"
+    ),
+    depvar = recode(depvar,
+                    "haz_who" = "HAZ" ,
+                    "bmiz_who" = "BMIZ"
+    ),
+    typeEffect = "overall"
+  )
+
+# Compute proportions by category
+mainResults <- mainResults %>% 
+  group_by(depvar, name, expvar) %>% 
+  mutate(N_treat = sum(Ntype_treat)) %>% 
+  ungroup() %>% 
+  mutate(prop = round(Ntype_treat * 100 / N_treat, 2))
+
+# Generate labels for the plot
+mainResults <- mainResults %>%
+  group_by(depvar, name, expvar) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N female treat (pct): %s (%s)\n",
+      first(expvar),
+      scales::comma(first(Ntype_treat)),
+      scales::comma(first(prop))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+mainResults$lab[-c(1:3, 19:21)] <- gsub("N female treat (pct): ", "", mainResults$lab[-c(1:3, 19:21)], fixed = TRUE)
+
+# Order factor levels
+mainResults$lab <- mainResults$lab %>% 
+  fct_inorder()
+
+mainResults$depvar <- mainResults$depvar %>% 
+  fct_inorder()
+
+mainResults$estimate <- mainResults$estimate %>% 
+  fct_inorder()
+
+# Generate and save the plot
+mainResults %>% 
+  #filter(depvar == "HAZ") %>% 
+  ggplot(aes(x = lab, y = pe, color = estimate, ymin = `CI2.5`, ymax = `CI97.5`)) +
+  geom_point(position = position_dodge(.5)) +
+  geom_linerange(position = position_dodge(.5)) +
+  geom_linerange(aes(ymin = CI5, ymax = CI95), lwd = 1, position = position_dodge(.5)) +
+  geom_hline(yintercept = 0, lty = "dotted") +
+  facet_grid(depvar ~ name, scales = "free_x") +
+  scale_color_manual(values = c("male" = "grey69", "female" = "black","gap (male - female)"="#FC4E07" )) +
+  labs(
+    x = "proxies of the TC exposure",
+    y = "effect of the TC",
+    color = "", 
+    caption = sprintf(paste0("N = %s children", sep = " "), first(mainResults$N))) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/regression_results/komen/Aff. komen_reg.pdf", width = 18, height = 7, units = "cm")
+
+    
+```
+
+
+
+## Roanu
+### First estimate
+```{r}
+
+######################## First estimate ##########################################
+
+list_expvar = c("affected_roanu","exposed_at_least_zero_roanu","high_exposed_roanu")
+list_outcome = c("haz_who","bmiz_who")
+# Get estimates for each expvar variables using the function getEstimateGlobalwithemp_prox
+mainResults <- map_dfr(list_outcome, function(depvar) {
+    intResults <- map_dfr(list_expvar, function(expvar) {
+      bind_rows(
+        getEstimateGlobal(depvar, expvar, df_global_corrected)
+      )
+    })
+})
+# Extract results for "aff. roanu" models
+m1 <- mainResults$Results_base[[1]]
+m2 <- mainResults$Results_base[[2]]
+m3 <- mainResults$Results_base[[3]]
+
+# Extract results for "At lst zero roanu" models
+m4 <- mainResults$Results_base[[4]]
+m5 <- mainResults$Results_base[[5]]
+m6 <- mainResults$Results_base[[6]]
+
+# Extract results for "Hgh exp. roanu" models
+m7 <- mainResults$Results_base[[7]]
+m8 <- mainResults$Results_base[[8]]
+m9 <- mainResults$Results_base[[9]]
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m1, m2, m3, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          
+          keep = c("time_bi1", "affected_roanu1", "hhm_sex1", "hhm_age", "hh_size", "marital_status_hhmmarried", "marital_status_hhmseparated/deserted","marital_status_hhmunmarried (never married)", "literacy_hhmcan read and write", "literacy_hhmcan sign only", "literacy_hhmcannot read and write","education_highcompleted class 2", "education_highcompleted class 3", "education_highcompleted class 4", "education_highcompleted class 5", "education_highcompleted class 6", "education_highcompleted class 7", "education_highcompleted class 8", "education_highcompleted class 9", "education_highcompleted class i", "education_highcompleted hsc/alim", "education_highcompleted ssc/dakhil", "education_highhsc candidate", "education_highnever attended school","education_highother","education_highothers(specify)","education_highpreschool (mosque based)","education_highreads in class i", "education_highssc candidate","hh_head_religionHindu","hh_head_religionMuslim","hh_head_religionOther(specify)","hh_ethnic_groupBihari","hh_ethnic_groupMru(Murong)","hh_ethnic_groupOthers","hh_ethnic_groupSawtal","hh_ethnic_groupTribal","hh_ethnic_groupTripura","nbr_female","nbr_underfive","nbr_yngchldrn_5_10","nbr_teenager_10_20","nbr_adults_20_65","nbr_female_underfive","nbr_female_yngchldrn_5_10","nbr_female_teenager_10_20","nbr_female_adults_20_65","time_bi1:affected_roanu1"),
+
+          covariate.labels = c('afterTC','affectedTC', 'child sexe  (ref. category: female)  &&&\\ -male','child age',"hh. size", "marital status (ref. category: divorced) &&&\\ - married", "- separated/deserted","- unmarried (never married)", "literacy (ref. category: can read  only) &&&\\ - can read and write", "- can sign only", "- cannot read and write","education (ref. category: ba/bsc pass/fazil) &&&\\ - completed class 2", "- completed class 3", "- completed class 4", "- completed class 5", "- completed class 6", "- completed class 7", "- completed class 8", "- completed class 9", "- completed class i", "- completed hsc/alim", "- completed ssc/dakhil", "- hsc candidate", "- never attended school","- other","- others(specify)","- preschool (mosque based)","- reads in class i", "- ssc candidate", "hh. head religion (ref. category: christian) &&&\\ -  Hindu","- Muslim","- Other(specify)", "- Bihari","- Mru(Murong)","- Others", "- Sawtal","- Tribal","- Tripura","hh. composition: &&&\\ - nbr female", "- nbr underfive","- nbr yngchldrn (5-10 yrs)","- nbr teenager (10-20 yrs)","- nbr adults (20-65 yrs)","- nbr female underfive", "- nbr female yngchldrn (5-10 yrs)","- nbr female teenager (10-20 yrs)","- nbr female adults (20-65 yrs)",'afterTC * affectedTC'),
+
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/roanu/Aff. roanu_reg.text", sep = ""), notes = "Clustered std error")
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m4, m5, m6, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", "Hgh exp. roanu"),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/roanu/At lst zero roanu_reg.text", sep = ""), notes = "Clustered std error")
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m7, m8, m9, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/roanu/Hgh exp. roanu_reg.text", sep = ""), notes = "Clustered std error")
+
+```
+
+### Cross effect
+```{r}
+
+######################## cross effect  ################################################
+
+
+# Use map_dfr to iterate over each outcome and estimate effects for different exposure variables
+mainResults <- map_dfr(list_outcome, function(depvar) {    
+  intResults <- map_dfr(list_expvar, function(expvar) {
+    bind_rows(
+      getEstimateCross(depvar, expvar, df_global_corrected) 
+    )
+  })
+})
+
+# Perform data manipulation on the results
+mainResults <- mainResults %>% 
+  mutate(
+    # Recode variables for better labeling
+    estimate = recode(
+      estimate,
+      Female = "female",
+      Male = "male",
+      Gap = "gap (male - female)"
+    ),
+    depvar = recode(depvar,
+                    "haz_who" = "HAZ" ,
+                    "bmiz_who" = "BMIZ"
+    ),
+    typeEffect = "overall"
+  )
+
+# Compute proportions by category
+mainResults <- mainResults %>% 
+  group_by(depvar, name, expvar) %>% 
+  mutate(N_treat = sum(Ntype_treat)) %>% 
+  ungroup() %>% 
+  mutate(prop = round(Ntype_treat * 100 / N_treat, 2))
+
+# Generate labels for the plot
+mainResults <- mainResults %>%
+  group_by(depvar, name, expvar) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N female treat (pct): %s (%s)\n",
+      first(expvar),
+      scales::comma(first(Ntype_treat)),
+      scales::comma(first(prop))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+mainResults$lab[-c(1:3, 19:21)] <- gsub("N female treat (pct): ", "", mainResults$lab[-c(1:3, 19:21)], fixed = TRUE)
+
+# Order factor levels
+mainResults$lab <- mainResults$lab %>% 
+  fct_inorder()
+
+mainResults$depvar <- mainResults$depvar %>% 
+  fct_inorder()
+
+mainResults$estimate <- mainResults$estimate %>% 
+  fct_inorder()
+
+# Generate and save the plot
+mainResults %>% 
+  #filter(depvar == "HAZ") %>% 
+  ggplot(aes(x = lab, y = pe, color = estimate, ymin = `CI2.5`, ymax = `CI97.5`)) +
+  geom_point(position = position_dodge(.5)) +
+  geom_linerange(position = position_dodge(.5)) +
+  geom_linerange(aes(ymin = CI5, ymax = CI95), lwd = 1, position = position_dodge(.5)) +
+  geom_hline(yintercept = 0, lty = "dotted") +
+  facet_grid(depvar ~ name, scales = "free_x") +
+  scale_color_manual(values = c("male" = "grey69", "female" = "black","gap (male - female)"="#FC4E07" )) +
+  labs(
+    x = "proxies of the TC exposure",
+    y = "effect of the TC",
+    color = "", 
+    caption = sprintf(paste0("N = %s children", sep = " "), first(mainResults$N))) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/regression_results/roanu/Aff. roanu_reg.pdf", width = 18, height = 7, units = "cm")
+
+    
+```
+
+## Mora
+### First estimate
+```{r}
+
+######################## First estimate ##########################################
+
+list_expvar = c("affected_mora","exposed_at_least_zero_mora","high_exposed_mora")
+list_outcome = c("haz_who","bmiz_who")
+# Get estimates for each expvar variables using the function getEstimateGlobalwithemp_prox
+mainResults <- map_dfr(list_outcome, function(depvar) {
+    intResults <- map_dfr(list_expvar, function(expvar) {
+      bind_rows(
+        getEstimateGlobal(depvar, expvar, df_global_corrected)
+      )
+    })
+})
+# Extract results for "aff. mora" models
+m1 <- mainResults$Results_base[[1]]
+m2 <- mainResults$Results_base[[2]]
+m3 <- mainResults$Results_base[[3]]
+
+# Extract results for "At lst zero mora" models
+m4 <- mainResults$Results_base[[4]]
+m5 <- mainResults$Results_base[[5]]
+m6 <- mainResults$Results_base[[6]]
+
+# Extract results for "Hgh exp. mora" models
+m7 <- mainResults$Results_base[[7]]
+m8 <- mainResults$Results_base[[8]]
+m9 <- mainResults$Results_base[[9]]
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m1, m2, m3, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          
+          keep = c("time_bi1", "affected_mora1", "hhm_sex1", "hhm_age", "hh_size", "marital_status_hhmmarried", "marital_status_hhmseparated/deserted","marital_status_hhmunmarried (never married)", "literacy_hhmcan read and write", "literacy_hhmcan sign only", "literacy_hhmcannot read and write","education_highcompleted class 2", "education_highcompleted class 3", "education_highcompleted class 4", "education_highcompleted class 5", "education_highcompleted class 6", "education_highcompleted class 7", "education_highcompleted class 8", "education_highcompleted class 9", "education_highcompleted class i", "education_highcompleted hsc/alim", "education_highcompleted ssc/dakhil", "education_highhsc candidate", "education_highnever attended school","education_highother","education_highothers(specify)","education_highpreschool (mosque based)","education_highreads in class i", "education_highssc candidate","hh_head_religionHindu","hh_head_religionMuslim","hh_head_religionOther(specify)","hh_ethnic_groupBihari","hh_ethnic_groupMru(Murong)","hh_ethnic_groupOthers","hh_ethnic_groupSawtal","hh_ethnic_groupTribal","hh_ethnic_groupTripura","nbr_female","nbr_underfive","nbr_yngchldrn_5_10","nbr_teenager_10_20","nbr_adults_20_65","nbr_female_underfive","nbr_female_yngchldrn_5_10","nbr_female_teenager_10_20","nbr_female_adults_20_65","time_bi1:affected_mora1"),
+
+          covariate.labels = c('afterTC','affectedTC', 'child sexe  (ref. category: female)  &&&\\ -male','child age',"hh. size", "marital status (ref. category: divorced) &&&\\ - married", "- separated/deserted","- unmarried (never married)", "literacy (ref. category: can read  only) &&&\\ - can read and write", "- can sign only", "- cannot read and write","education (ref. category: ba/bsc pass/fazil) &&&\\ - completed class 2", "- completed class 3", "- completed class 4", "- completed class 5", "- completed class 6", "- completed class 7", "- completed class 8", "- completed class 9", "- completed class i", "- completed hsc/alim", "- completed ssc/dakhil", "- hsc candidate", "- never attended school","- other","- others(specify)","- preschool (mosque based)","- reads in class i", "- ssc candidate", "hh. head religion (ref. category: christian) &&&\\ -  Hindu","- Muslim","- Other(specify)", "- Bihari","- Mru(Murong)","- Others", "- Sawtal","- Tribal","- Tripura","hh. composition: &&&\\ - nbr female", "- nbr underfive","- nbr yngchldrn (5-10 yrs)","- nbr teenager (10-20 yrs)","- nbr adults (20-65 yrs)","- nbr female underfive", "- nbr female yngchldrn (5-10 yrs)","- nbr female teenager (10-20 yrs)","- nbr female adults (20-65 yrs)",'afterTC * affectedTC'),
+
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/mora/Aff. mora_reg.text", sep = ""), notes = "Clustered std error")
+
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m4, m5, m6, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", "Hgh exp. mora"),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/mora/At lst zero mora_reg.text", sep = ""), notes = "Clustered std error")
+
+# Generate a latex table using stargazer to display the regression results
+stargazer(m7, m8, m9, title = "Effect of TC Height for Age Z-Score (HAZ)", digits = 2, float = TRUE, se.position = "below",
+          type = "text", omit.stat = c("LL", "ser", "f", "adj.rsq", "res.dev"), dep.var.labels.include = TRUE, font.size = "small",
+          notes.align = "l", table.placement = "H", header = F,
+          column.labels = c("", "", ""),
+          add.lines = list(c('Survey year fixed effects', 'No', 'Yes', 'Yes'),
+                           c('Cluster fixed effects', 'No', 'Yes', 'Yes')),
+          out = paste0("output/regression_results/mora/Hgh exp. mora_reg.text", sep = ""), notes = "Clustered std error")
+
+```
+
+### Cross effect
+```{r}
+
+######################## cross effect  ################################################
+
+
+# Use map_dfr to iterate over each outcome and estimate effects for different exposure variables
+mainResults <- map_dfr(list_outcome, function(depvar) {    
+  intResults <- map_dfr(list_expvar, function(expvar) {
+    bind_rows(
+      getEstimateCross(depvar, expvar, df_global_corrected) 
+    )
+  })
+})
+
+# Perform data manipulation on the results
+mainResults <- mainResults %>% 
+  mutate(
+    # Recode variables for better labeling
+    estimate = recode(
+      estimate,
+      Female = "female",
+      Male = "male",
+      Gap = "gap (male - female)"
+    ),
+    depvar = recode(depvar,
+                    "haz_who" = "HAZ" ,
+                    "bmiz_who" = "BMIZ"
+    ),
+    typeEffect = "overall"
+  )
+
+# Compute proportions by category
+mainResults <- mainResults %>% 
+  group_by(depvar, name, expvar) %>% 
+  mutate(N_treat = sum(Ntype_treat)) %>% 
+  ungroup() %>% 
+  mutate(prop = round(Ntype_treat * 100 / N_treat, 2))
+
+# Generate labels for the plot
+mainResults <- mainResults %>%
+  group_by(depvar, name, expvar) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N female treat (pct): %s (%s)\n",
+      first(expvar),
+      scales::comma(first(Ntype_treat)),
+      scales::comma(first(prop))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+mainResults$lab[-c(1:3, 19:21)] <- gsub("N female treat (pct): ", "", mainResults$lab[-c(1:3, 19:21)], fixed = TRUE)
+
+# Order factor levels
+mainResults$lab <- mainResults$lab %>% 
+  fct_inorder()
+
+mainResults$depvar <- mainResults$depvar %>% 
+  fct_inorder()
+
+mainResults$estimate <- mainResults$estimate %>% 
+  fct_inorder()
+
+# Generate and save the plot
+mainResults %>% 
+  #filter(depvar == "HAZ") %>% 
+  ggplot(aes(x = lab, y = pe, color = estimate, ymin = `CI2.5`, ymax = `CI97.5`)) +
+  geom_point(position = position_dodge(.5)) +
+  geom_linerange(position = position_dodge(.5)) +
+  geom_linerange(aes(ymin = CI5, ymax = CI95), lwd = 1, position = position_dodge(.5)) +
+  geom_hline(yintercept = 0, lty = "dotted") +
+  facet_grid(depvar ~ name, scales = "free_x") +
+  scale_color_manual(values = c("male" = "grey69", "female" = "black","gap (male - female)"="#FC4E07" )) +
+  labs(
+    x = "proxies of the TC exposure",
+    y = "effect of the TC",
+    color = "", 
+    caption = sprintf(paste0("N = %s children", sep = " "), first(mainResults$N))) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/regression_results/mora/Aff. mora_reg.pdf", width = 18, height = 7, units = "cm")
+
+    
+```

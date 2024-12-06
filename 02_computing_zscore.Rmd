@@ -58,8 +58,8 @@ library(Statamarkdown)
 cd "C:\Users\ASUS\Dropbox\PhD thesis\chapitre_2\Unequal-Plate"
 capture mkdir ".\input\zanthro"
 cd ".\input\zanthro"
-net get dm0004_1, from(http://www.stata- journal.com/software/sj13-2/)
-
+#net get dm0004_1, from(http://www.stata- journal.com/software/sj13-2/)
+net install dm0004_1, from( http://www.stata-journal.com/software/sj13-2/)
 ########################################################################################################################################################
 ########################################## df global ###################################################################################################
 ########################################################################################################################################################

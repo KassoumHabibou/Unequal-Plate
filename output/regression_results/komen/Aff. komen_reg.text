@@ -1,0 +1,155 @@
+
+Effect of TC Height for Age Z-Score (HAZ)
+=====================================================================================
+                                                       Dependent variable:           
+                                             ----------------------------------------
+                                                             haz_who                 
+                                                                                     
+                                                      (1)             (2)      (3)   
+-------------------------------------------------------------------------------------
+afterTC                                                             -0.23*** 0.54*** 
+                                                                     (0.03)   (0.03) 
+                                                                                     
+affectedTC                                           -0.09           -0.12*    0.01  
+                                                     (0.06)          (0.07)   (0.06) 
+                                                                                     
+child sexe (ref. category: female)                  &&-male                          
+                                                                              (0.04) 
+                                                                                     
+child age                                                                    -0.52***
+                                                                              (0.02) 
+                                                                                     
+hh. size                                                                      0.04** 
+                                                                              (0.02) 
+                                                                                     
+marital status (ref. category: divorced)          &&- married                        
+                                                                              (0.50) 
+                                                                                     
+- separated/deserted                                                           0.41  
+                                                                              (0.63) 
+                                                                                     
+- unmarried (never married)                                                  0.24*** 
+                                                                              (0.08) 
+                                                                                     
+literacy (ref. category: can read only)      &&- can read and write                  
+                                                                              (0.11) 
+                                                                                     
+- can sign only                                                              -0.40***
+                                                                              (0.10) 
+                                                                                     
+- cannot read and write                                                      -1.44***
+                                                                              (0.15) 
+                                                                                     
+education (ref. category: ba/bsc pass/fazil) &&- completed class 2                   
+                                                                              (0.13) 
+                                                                                     
+- completed class 3                                                          -0.53***
+                                                                              (0.11) 
+                                                                                     
+- completed class 4                                                           -0.003 
+                                                                              (0.09) 
+                                                                                     
+- completed class 5                                                          0.25*** 
+                                                                              (0.08) 
+                                                                                     
+- completed class 6                                                          0.51*** 
+                                                                              (0.06) 
+                                                                                     
+- completed class 7                                                          0.85*** 
+                                                                              (0.06) 
+                                                                                     
+- completed class 8                                                          1.11*** 
+                                                                              (0.05) 
+                                                                                     
+- completed class 9                                                          -2.18***
+                                                                              (0.17) 
+                                                                                     
+- completed class i                                                          1.74*** 
+                                                                              (0.10) 
+                                                                                     
+- completed hsc/alim                                                         1.40*** 
+                                                                              (0.06) 
+                                                                                     
+- completed ssc/dakhil                                                       1.87*** 
+                                                                              (0.31) 
+                                                                                     
+- hsc candidate                                                              -3.05***
+                                                                              (0.25) 
+                                                                                     
+- never attended school                                                      -3.55***
+                                                                              (0.58) 
+                                                                                     
+- other                                                                      -2.05***
+                                                                              (0.30) 
+                                                                                     
+- others(specify)                                                            -2.75***
+                                                                              (0.19) 
+                                                                                     
+- preschool (mosque based)                                                   1.31*** 
+                                                                              (0.10) 
+                                                                                     
+- reads in class i                                                           1.60*** 
+                                                                              (0.13) 
+                                                                                     
+- ssc candidate                                                              1.61*** 
+                                                                              (0.12) 
+                                                                                     
+hh. head religion (ref. category: christian)       &&- Hindu                         
+                                                                              (0.34) 
+                                                                                     
+- Muslim                                                                      0.26*  
+                                                                              (0.15) 
+                                                                                     
+- Other(specify)                                                               0.86  
+                                                                              (0.68) 
+                                                                                     
+- Bihari                                                                       0.51  
+                                                                              (0.70) 
+                                                                                     
+- Mru(Murong)                                                                 0.18** 
+                                                                              (0.09) 
+                                                                                     
+- Others                                                                       0.05  
+                                                                              (0.12) 
+                                                                                     
+- Sawtal                                                                     -0.11***
+                                                                              (0.04) 
+                                                                                     
+- Tribal                                                                     -0.19***
+                                                                              (0.03) 
+                                                                                     
+- Tripura                                                                     -0.001 
+                                                                              (0.03) 
+                                                                                     
+hh. composition:                                 &&- nbr female                      
+                                                                              (0.02) 
+                                                                                     
+- nbr underfive                                                               -0.09  
+                                                                              (0.14) 
+                                                                                     
+- nbr yngchldrn (5-10 yrs)                                                    -0.09  
+                                                                              (0.14) 
+                                                                                     
+- nbr teenager (10-20 yrs)                                                    -0.11  
+                                                                              (0.13) 
+                                                                                     
+- nbr adults (20-65 yrs)                                                       0.02  
+                                                                              (0.14) 
+                                                                                     
+- nbr female underfive                                               0.10*     0.04  
+                                                                     (0.06)   (0.05) 
+                                                                                     
+-------------------------------------------------------------------------------------
+Survey year fixed effects                              No             Yes      Yes   
+Cluster fixed effects                                  No             Yes      Yes   
+Observations                                         16,651          16,651   16,648 
+R2                                                   0.0003          0.003     0.24  
+=====================================================================================
+Note:                                        *p<0.1; **p<0.05; ***p<0.01             
+                                             Clustered std error                     
+
+Effect of TC Height for Age Z-Score (HAZ)
+===================
+                   
+-------------------
+Clustered std error

@@ -2967,9 +2967,170 @@ tbl_merge(
 df_global_corrected <- df_global_corrected %>% 
   mutate(year = ifelse(survey_round=="1",2012,
                        ifelse(survey_round=="2", 2015,
-                              ifelse(survey_round=="3",2018,NA))))
-# 
+                              ifelse(survey_round=="3",2018,NA))))%>%
+  filter(hhm_interest==1)
+
+df_global_corrected %>%
+  group_by(hhm_sex, hhm_age) %>% 
+  summarise(haz_avr = mean(haz_who, na.rm=TRUE)) %>% 
+  ggplot(aes(x = hhm_age, y = haz_avr, color = hhm_sex)) +
+  geom_point(position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5))+
+  geom_hline(yintercept = 0, lty = "dotted") +
+  scale_color_manual(values = c("male" = "grey69", "female" = "black" )) +
+  labs(
+    x = "age",
+    y = "haz",
+    color = "", 
+    linetype="",
+    title="HAZ by age and sex",
+    caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/komen/Haz by age komen.pdf", width = 18, height = 7, units = "cm")
+
+df_global_corrected %>%
+  group_by(hhm_sex, hhm_age, affected_komen) %>% 
+  summarise(haz_avr = mean(haz_who, na.rm=TRUE)) %>% 
+  mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+  ggplot(aes(x = hhm_age, y = haz_avr, color = hhm_sex, linetype=affected_komen)) +
+  geom_point(position = position_dodge(.5)) +
+  geom_line(position = position_dodge(.5))+
+  geom_hline(yintercept = 0, lty = "dotted") +
+  scale_color_manual(values = c("male" = "grey69", "female" = "black" )) +
+  labs(
+    x = "age",
+    y = "haz",
+    color = "", 
+    linetype="",
+    caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/komen/Haz by age and exposed.pdf", width = 18, height = 7, units = "cm")
+    
+
+# df_global_corrected %>%
+#   group_by(hhm_sex, hhm_age) %>% 
+#   summarise(bmiz_avr = mean(bmiz_who, na.rm=TRUE)) %>% 
+#   ggplot(aes(x = hhm_age, y = bmiz_who, color = hhm_sex)) +
+#   geom_point(position = position_dodge(.5)) +
+#   geom_line(position = position_dodge(.5))+
+#   geom_hline(yintercept = 0, lty = "dotted") +
+#   scale_color_manual(values = c("male" = "grey69", "female" = "black" )) +
+#   labs(
+#     x = "age",
+#     y = "bmiz",
+#     color = "", 
+#     caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))) + 
+#     theme_light(base_size = 8)+
+#     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+#     ggsave("output/img/stat desc/bmiz by age.pdf", width = 18, height = 7, units = "cm")
+# # 
 ```
+
+```{r}
+df_global_corrected %>%
+  group_by(hhm_age, affected_komen) %>%
+  group_split() %>% 
+  map_dfr(., function(splitted_df){
+    # Separate female and male data
+    ## HAZ
+    female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+    
+    male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+    ## BMI
+    female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+    male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+    
+    ## WAZ
+    female_data_waz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(waz_who)
+    male_data_waz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(waz_who)
+    
+    # Check if both groups have data
+    if(length(female_data_haz) > 0 & length(male_data_haz) > 0) {
+      
+      t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided", paired = FALSE)
+      t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided", paired = FALSE)
+
+      # 
+      bind_rows(
+        tibble(
+        mean_value = c(t_test_haz$estimate[1],t_test_haz$estimate[2]),
+        n = c(length(female_data_haz),length(male_data_haz)),
+        type=c("female","male"),
+        depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+        CI2.5 = t_test_haz$conf.int[1],
+        CI97.5 = t_test_haz$conf.int[2],
+
+        # Add more context
+        #year = unique(splitted_df$survey_year),
+        affected_komen = unique(splitted_df$affected_komen),
+        hhm_age =  unique(splitted_df$hhm_age),
+        outcome = "HAZ"
+      ),
+      tibble(
+        mean_value = c(t_test_bmiz$estimate[1],t_test_bmiz$estimate[2]),
+        n = c(length(female_data_bmiz),length(male_data_bmiz)),
+        type=c("female","male"),
+        depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+        CI2.5 = t_test_bmiz$conf.int[1],
+        CI97.5 = t_test_bmiz$conf.int[2],
+
+        # Add more context
+        #year = unique(splitted_df$survey_year),
+        affected_komen = unique(splitted_df$affected_komen),
+        hhm_age =  unique(splitted_df$hhm_age),
+        outcome = "BMIZ"
+      ))
+    } else {
+      # Return NA if insufficient data
+      bind_rows(
+        tibble(
+          mean_value = c(NA,NA),
+          n = c(NA,NA),
+          type=c("female","male"),
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          
+          # Add more context
+          #year = unique(splitted_df$survey_year),
+          affected_komen = unique(splitted_df$affected_komen),
+          hhm_age =  unique(splitted_df$hhm_age),
+          outcome = "HAZ"
+        ),
+        tibble(
+          mean_value = c(NA,NA),
+          n = c(NA,NA),
+          type=c("female","male"),
+          depvar = NA,
+          CI2.5 = NA,
+          CI97.5 = NA,
+          
+          # Add more context
+          #year = unique(splitted_df$survey_year),
+          affected_komen = unique(splitted_df$affected_komen),
+          hhm_age =  unique(splitted_df$hhm_age),
+          outcome = "BMIZ"
+        ))
+    }
+  }) %>% 
+    mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) %>% 
+    ggplot(aes(x = hhm_age, y = mean_value, color = type)) +
+    geom_point(size=0.7, position = position_dodge(.5)) +
+    geom_line(linewidth=0.5, position = position_dodge(.5))+
+    facet_grid(affected_komen ~ outcome , scales = "free_x") +
+    scale_color_manual(values = c("male" = "grey69", "female" = "black")) +
+    labs(
+        x = "year",
+        y = "value",
+        color = "",
+        caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+    ) + 
+    theme_light(base_size = 8)+
+    theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+```
+
 
 
 #### Komen
@@ -3573,6 +3734,427 @@ df_global_corrected %>%
 ```
 
 
+##### Gaps (Female - Male) by birth cohort
+
+```{r}
+## Affected Komen
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, affected_komen) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_komen = unique(splitted_df$affected_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_komen = unique(splitted_df$affected_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_komen = unique(splitted_df$affected_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_komen = unique(splitted_df$affected_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(affected_komen = factor(affected_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(affected_komen=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = affected_komen, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, affected_komen))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/komen/by_cohort_affected komen.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+## At least one affected   
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, exposed_at_least_zero_komen) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_komen = unique(splitted_df$exposed_at_least_zero_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(exposed_at_least_zero_komen=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = exposed_at_least_zero_komen, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, exposed_at_least_zero_komen))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/komen/by_cohort_exposed_at_least_zero_komen.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+
+## high exposed  
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year,  high_exposed_komen) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_komen = unique(splitted_df$high_exposed_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_komen = unique(splitted_df$high_exposed_komen),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_komen = unique(splitted_df$high_exposed_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_komen = unique(splitted_df$high_exposed_komen),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(high_exposed_komen=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = high_exposed_komen, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, high_exposed_komen))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/komen/by_cohort_high_exposed_komen.pdf", width = 18, height = 7, units = "cm")
+```
+
+
 #### Roanu
 ##### Baseline
 ```{r}
@@ -4173,6 +4755,430 @@ df_global_corrected %>%
       ggsave("output/img/stat desc/roanu/outcome_mean_bysex_high_exposed_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
 ```
 
+
+
+##### Gaps (Female - Male) by birth cohort
+
+```{r}
+## Affected roanu
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, affected_roanu) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_roanu = unique(splitted_df$affected_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_roanu = unique(splitted_df$affected_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_roanu = unique(splitted_df$affected_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_roanu = unique(splitted_df$affected_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(affected_roanu = factor(affected_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(affected_roanu=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = affected_roanu, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, affected_roanu))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/roanu/by_cohort_affected roanu.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+## At least one affected   
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, exposed_at_least_zero_roanu) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_roanu = unique(splitted_df$exposed_at_least_zero_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(exposed_at_least_zero_roanu=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = exposed_at_least_zero_roanu, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, exposed_at_least_zero_roanu))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/roanu/by_cohort_exposed_at_least_zero_roanu.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+
+## high exposed  
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year,  high_exposed_roanu) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_roanu = unique(splitted_df$high_exposed_roanu),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(high_exposed_roanu=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = high_exposed_roanu, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, high_exposed_roanu))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/roanu/by_cohort_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+```
+
+
+
 #### Mora
 ##### Baseline
 ```{r}
@@ -4769,6 +5775,429 @@ df_global_corrected %>%
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
       ggsave("output/img/stat desc/mora/outcome_mean_bysex_high_exposed_mora_gaps.pdf", width = 18, height = 7, units = "cm")
 ```
+
+
+##### Gaps (Female - Male) by birth cohort
+
+```{r}
+## Affected mora
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, affected_mora) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_mora = unique(splitted_df$affected_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          affected_mora = unique(splitted_df$affected_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_mora = unique(splitted_df$affected_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            affected_mora = unique(splitted_df$affected_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(affected_mora = factor(affected_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(affected_mora=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = affected_mora, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, affected_mora))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/mora/by_cohort_affected mora.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+## At least one affected   
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year, exposed_at_least_zero_mora) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            exposed_at_least_zero_mora = unique(splitted_df$exposed_at_least_zero_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(exposed_at_least_zero_mora=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = exposed_at_least_zero_mora, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, exposed_at_least_zero_mora))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/mora/by_cohort_exposed_at_least_zero_mora.pdf", width = 18, height = 7, units = "cm")
+    
+    
+    
+
+## high exposed  
+plot_df  <- df_global_corrected %>%
+    group_by(birth_cohort, year,  high_exposed_mora) %>%
+    group_split() %>% 
+    map_dfr(., function(splitted_df){
+      # Separate female and male data
+          ## HAZ
+      female_data_haz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(haz_who)
+      
+      male_data_haz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(haz_who)
+      ## BMI
+      female_data_bmiz <- splitted_df %>% filter(hhm_sex == "female") %>% pull(bmiz_who)
+      male_data_bmiz <- splitted_df %>% filter(hhm_sex == "male") %>% pull(bmiz_who)
+      
+      
+      
+      # Check if both groups have data
+      if(length(female_data_haz) > 0 && length(male_data_haz) > 0) {
+        t_test_haz <- t.test(female_data_haz, male_data_haz, alternative = "two.sided")
+        t_test_bmiz <- t.test(female_data_bmiz, male_data_bmiz, alternative = "two.sided")
+        #t_test_waz <- t.test(female_data_waz, male_data_waz, alternative = "two.sided")
+        
+        bind_rows(
+          tibble(
+          estimate_female = t_test_haz$estimate[1],
+          n_female=length(female_data_haz),
+          n_male = length(male_data_haz),
+          n= n_male + n_female,
+          estimate_male = t_test_haz$estimate[2],
+          depvar = t_test_haz$estimate[1] - t_test_haz$estimate[2],
+          CI2.5 = t_test_haz$conf.int[1],
+          CI97.5 = t_test_haz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_mora = unique(splitted_df$high_exposed_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          outcome = "HAZ"
+        ),
+        tibble(
+          estimate_female = t_test_bmiz$estimate[1],
+          estimate_male = t_test_bmiz$estimate[2],
+          depvar = t_test_bmiz$estimate[1] - t_test_bmiz$estimate[2],
+          CI2.5 = t_test_bmiz$conf.int[1],
+          CI97.5 = t_test_bmiz$conf.int[2],
+          
+          # Add more context
+          year = unique(splitted_df$year),
+          high_exposed_mora = unique(splitted_df$high_exposed_mora),
+          birth_cohort = unique(splitted_df$birth_cohort),
+          n_female=length(female_data_bmiz),
+          n_male = length(male_data_bmiz),
+          n= n_male + n_female,
+          outcome = "BMIZ"
+        ))
+      } else {
+        # Return NA if insufficient data
+        bind_rows(
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_mora = unique(splitted_df$high_exposed_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_haz),
+            n_male = length(male_data_haz),
+            n= n_male + n_female,
+            outcome = "HAZ"
+          ),
+          tibble(
+            estimate_female = NA,
+            estimate_male = NA,
+            depvar = NA,
+            CI2.5 = NA,
+            CI97.5 = NA,
+            year = unique(splitted_df$year),
+            high_exposed_mora = unique(splitted_df$high_exposed_mora),
+            birth_cohort = unique(splitted_df$birth_cohort),
+            n_female=length(female_data_bmiz),
+            n_male = length(male_data_bmiz),
+            n = n_male + n_female,
+            outcome = "BMIZ"
+          ))
+      }
+    }) %>% 
+      mutate(high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1"), labels = c("No affected", "Affected"), ordered = TRUE)) 
+
+
+
+plot_df <- plot_df %>% 
+      filter(high_exposed_mora=="Affected") %>% 
+      mutate(n_affected_male = n_male, n_affected_female = n_female, n_affected = n) %>% 
+      select(birth_cohort, year, outcome, n_affected_male, n_affected_female, n_affected) %>%
+      right_join(plot_df)
+
+# Generate labels for the plot
+plot_df <- plot_df %>%
+  group_by(birth_cohort, year, outcome) %>%
+  mutate(
+    lab = sprintf(
+      "%s \n N tot: %s \n Treat (pct): %s \n Fem. treat (pct): %s \n",
+      first(year),
+      first(n) + first(n_affected),
+      round(as.numeric(first(n_affected)*100/(first(n) + first(n_affected)))),
+      round(as.numeric(first(n_affected_female)*100/first(n_affected)))
+    )
+  ) %>%
+  ungroup() 
+
+# Remove unnecessary prefixes in labels
+plot_df$lab[-c(1:4)] <- gsub("N tot: ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+plot_df$lab[-c(1:4)] <- gsub("Fem. treat (pct): ", "", plot_df$lab[-c(1:4)], fixed = TRUE)
+
+
+plot_df %>% 
+      ggplot(aes(x = lab, y = depvar, color = high_exposed_mora, ymin = `CI2.5`, ymax = `CI97.5`, group = interaction(birth_cohort, high_exposed_mora))) +
+      geom_point(size=0.7, position = position_dodge(.5)) +
+      geom_line(linewidth=0.5, position = position_dodge(.5))+
+    geom_linerange(lwd = 0.3, position = position_dodge(.5)) +
+     geom_hline(yintercept = 0, linetype="dashed", color="black") +
+      geom_vline(xintercept = "2015", linetype="longdash", color="red") +
+     facet_grid(outcome~birth_cohort, scales = "free_x") +
+      scale_color_manual(values = c("No affected" = "grey69", "Affected" = "black")) +
+      labs(
+          x = "year",
+          y = "gap (female - male)",
+          color = "",
+          caption = sprintf(paste0("N = %s children", sep = " "), nrow(df_global_corrected))
+      ) +
+      theme_light(base_size = 8)+
+      theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
+    ggsave("output/img/stat desc/mora/by_cohort_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
+```
+
+
 
 ### Diff by sex
 #### Komen

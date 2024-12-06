@@ -1,0 +1,173 @@
+
+Effect of TC Height for Age Z-Score (HAZ)
+===========================================================================
+                                                  Dependent variable:      
+                                            -------------------------------
+                                                        haz_who            
+                                                              Hgh exp. mora
+                                              (1)      (2)         (3)     
+---------------------------------------------------------------------------
+time_bi1                                             -0.23***    0.54***   
+                                                      (0.04)     (0.04)    
+                                                                           
+exposed_at_least_zero_mora1                 -0.13*** -0.14**      -0.04    
+                                             (0.05)   (0.06)     (0.05)    
+                                                                           
+hhm_sex1                                                         0.28***   
+                                                                 (0.04)    
+                                                                           
+hhm_age                                                         -0.52***   
+                                                                 (0.02)    
+                                                                           
+hh_size                                                          0.04**    
+                                                                 (0.02)    
+                                                                           
+marital_status_hhmmarried                                         0.83     
+                                                                 (0.50)    
+                                                                           
+marital_status_hhmseparated/deserted                              0.44     
+                                                                 (0.64)    
+                                                                           
+marital_status_hhmunmarried (never married)                       -0.25    
+                                                                 (0.51)    
+                                                                           
+literacy_hhmcan read and write                                   0.24***   
+                                                                 (0.08)    
+                                                                           
+literacy_hhmcan sign only                                         0.20*    
+                                                                 (0.11)    
+                                                                           
+literacy_hhmcannot read and write                               -0.40***   
+                                                                 (0.10)    
+                                                                           
+education_highcompleted class 2                                 -1.41***   
+                                                                 (0.15)    
+                                                                           
+education_highcompleted class 3                                 -0.98***   
+                                                                 (0.13)    
+                                                                           
+education_highcompleted class 4                                 -0.50***   
+                                                                 (0.11)    
+                                                                           
+education_highcompleted class 5                                   0.02     
+                                                                 (0.09)    
+                                                                           
+education_highcompleted class 6                                  0.27***   
+                                                                 (0.08)    
+                                                                           
+education_highcompleted class 7                                  0.53***   
+                                                                 (0.06)    
+                                                                           
+education_highcompleted class 8                                  0.88***   
+                                                                 (0.06)    
+                                                                           
+education_highcompleted class 9                                  1.14***   
+                                                                 (0.05)    
+                                                                           
+education_highcompleted class i                                 -2.16***   
+                                                                 (0.17)    
+                                                                           
+education_highcompleted hsc/alim                                 1.76***   
+                                                                 (0.11)    
+                                                                           
+education_highcompleted ssc/dakhil                               1.42***   
+                                                                 (0.06)    
+                                                                           
+education_highhsc candidate                                      1.89***   
+                                                                 (0.31)    
+                                                                           
+education_highnever attended school                             -3.03***   
+                                                                 (0.25)    
+                                                                           
+education_highother                                             -3.52***   
+                                                                 (0.60)    
+                                                                           
+education_highothers(specify)                                   -2.01***   
+                                                                 (0.30)    
+                                                                           
+education_highpreschool (mosque based)                          -2.66***   
+                                                                 (0.28)    
+                                                                           
+education_highpreschool class (general)                         -3.00***   
+                                                                 (0.20)    
+                                                                           
+education_highreads in class i                                  -2.72***   
+                                                                 (0.19)    
+                                                                           
+education_highssc candidate                                      1.34***   
+                                                                 (0.10)    
+                                                                           
+hh_head_religionHindu                                            1.59***   
+                                                                 (0.14)    
+                                                                           
+hh_head_religionMuslim                                           1.60***   
+                                                                 (0.13)    
+                                                                           
+hh_head_religionOther(specify)                                   1.62***   
+                                                                 (0.36)    
+                                                                           
+hh_ethnic_groupBihari                                           -1.49***   
+                                                                 (0.34)    
+                                                                           
+hh_ethnic_groupMru(Murong)                                      -1.88***   
+                                                                 (0.08)    
+                                                                           
+hh_ethnic_groupOthers                                             0.24     
+                                                                 (0.16)    
+                                                                           
+hh_ethnic_groupSawtal                                             0.84     
+                                                                 (0.69)    
+                                                                           
+hh_ethnic_groupTribal                                             0.52     
+                                                                 (0.69)    
+                                                                           
+hh_ethnic_groupTripura                                           0.21***   
+                                                                 (0.08)    
+                                                                           
+nbr_female                                                        0.06     
+                                                                 (0.12)    
+                                                                           
+nbr_underfive                                                   -0.11***   
+                                                                 (0.04)    
+                                                                           
+nbr_yngchldrn_5_10                                              -0.19***   
+                                                                 (0.03)    
+                                                                           
+nbr_teenager_10_20                                                0.002    
+                                                                 (0.03)    
+                                                                           
+nbr_adults_20_65                                                 -0.004    
+                                                                 (0.03)    
+                                                                           
+nbr_female_underfive                                              -0.09    
+                                                                 (0.14)    
+                                                                           
+nbr_female_yngchldrn_5_10                                         -0.10    
+                                                                 (0.14)    
+                                                                           
+nbr_female_teenager_10_20                                         -0.11    
+                                                                 (0.13)    
+                                                                           
+nbr_female_adults_20_65                                           0.02     
+                                                                 (0.14)    
+                                                                           
+time_bi1:exposed_at_least_zero_mora1                   0.04       0.01     
+                                                      (0.06)     (0.05)    
+                                                                           
+Constant                                    -0.52*** -0.43***    3.75***   
+                                             (0.03)   (0.04)     (0.63)    
+                                                                           
+---------------------------------------------------------------------------
+Survey year fixed effects                      No      Yes         Yes     
+Cluster fixed effects                          No      Yes         Yes     
+Observations                                 16,651   16,651     16,648    
+R2                                           0.001    0.003       0.24     
+===========================================================================
+Note:                                       *p<0.1; **p<0.05; ***p<0.01    
+                                            Clustered std error            
+
+Effect of TC Height for Age Z-Score (HAZ)
+===================
+       below       
+-------------------
+Clustered std error
