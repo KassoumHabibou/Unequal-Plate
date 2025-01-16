@@ -241,7 +241,28 @@ mutate(
   ) %>%
        add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
   modify_header(label ~ "") %>% 
-  add_overall(last=TRUE)
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/splitted_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+  # as_gt() %>% 
+  # gt::as_word() %>% 
+  # gt::gtsave(filename = "output/table/splitted_stat_desc.docx")
 ```
 * For Hh who split between R1 and R2:
 184 households split between R1 and R2 to 396 households hence on average of 2.15 households.
@@ -350,9 +371,9 @@ re5 <- felm(hh_split_r2_r3 ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size +  ma
 
 
 
-stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+stargazer(re0, re1, re2, re3, re4, re5, type = "html", title = "Splitted hh. characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
 se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
-keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), out = paste0("output/table/splitted_reg_roanu.html", sep = ""))
 
 
 ```
@@ -499,9 +520,9 @@ re5 <- felm(hh_split_btwn_r2_r3 ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size 
 
 
 
-stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+stargazer(re0, re1, re2, re3, re4, re5, type = "html", title = "Splitted hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
 se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
-keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","affected_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"),  out = paste0("output/table/splitted_reg_aft_roanu.html", sep = ""))
 
 
 ```
@@ -590,8 +611,929 @@ mutate(
 - How to correct ???
 
 In the following, I remove the split households (from the initial 6503 households, I remove the 449 to perform the attrition analysis). Therefore 6054 hh remains
+### Stat desc by treatment status
+
+#### Komen
 
 
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+# Affected komen
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, affected_komen,mean_speed_komen,mean_time_komen,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  affected_komen = factor(affected_komen, levels = c("0", "1")),
+  mean_speed_komen = as.numeric(mean_speed_komen),
+  mean_time_komen = as.numeric(mean_time_komen),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_komen, 
+     label = list(
+       mean_speed_komen ~ "Mean wind speed (in m/s) komen",
+       mean_time_komen ~ "Mean wind duration (in hours) komen",
+    
+      # affected_komen ~ "Affected upazila komen (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_komen ~ "continuous" ,
+      mean_time_komen ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected union komen (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/komen/baseline_by_aff_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+# At least zero
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id,exposed_at_least_zero_komen,mean_speed_komen,mean_time_komen,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  exposed_at_least_zero_komen = factor(exposed_at_least_zero_komen, levels = c("0", "1")),
+  mean_speed_komen = as.numeric(mean_speed_komen),
+  mean_time_komen = as.numeric(mean_time_komen),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_komen, 
+     label = list(
+       mean_speed_komen ~ "Mean wind speed (in m/s) komen",
+       mean_time_komen ~ "Mean wind duration (in hours) komen",
+    
+      # affected_komen ~ "Affected upazila komen (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_komen ~ "continuous" ,
+      mean_time_komen ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed at least zero union komen (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/komen/baseline_by_aff_at_least_zero_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+
+# high affected komen
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, high_exposed_komen,mean_speed_komen,mean_time_komen,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  high_exposed_komen = factor(high_exposed_komen, levels = c("0", "1")),
+  mean_speed_komen = as.numeric(mean_speed_komen),
+  mean_time_komen = as.numeric(mean_time_komen),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_komen, 
+     label = list(
+       mean_speed_komen ~ "Mean wind speed (in m/s) komen",
+       mean_time_komen ~ "Mean wind duration (in hours) komen",
+       
+    
+      # affected_komen ~ "Affected upazila komen (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_komen ~ "continuous" ,
+      mean_time_komen ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed union komen (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/komen/baseline_by_highly_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+```
+
+
+
+#### Roanu
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+# Affected roanu
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, affected_roanu,mean_speed_roanu,mean_time_roanu,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  affected_roanu = factor(affected_roanu, levels = c("0", "1")),
+  mean_speed_roanu = as.numeric(mean_speed_roanu),
+  mean_time_roanu = as.numeric(mean_time_roanu),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_roanu, 
+     label = list(
+       mean_speed_roanu ~ "Mean wind speed (in m/s) roanu",
+       mean_time_roanu ~ "Mean wind duration (in hours) roanu",
+    
+      # affected_roanu ~ "Affected upazila roanu (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_roanu ~ "continuous" ,
+      mean_time_roanu ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected union roanu (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/baseline_by_aff_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+# At least zero
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id,exposed_at_least_zero_roanu,mean_speed_roanu,mean_time_roanu,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  exposed_at_least_zero_roanu = factor(exposed_at_least_zero_roanu, levels = c("0", "1")),
+  mean_speed_roanu = as.numeric(mean_speed_roanu),
+  mean_time_roanu = as.numeric(mean_time_roanu),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_roanu, 
+     label = list(
+       mean_speed_roanu ~ "Mean wind speed (in m/s) roanu",
+       mean_time_roanu ~ "Mean wind duration (in hours) roanu",
+    
+      # affected_roanu ~ "Affected upazila roanu (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_roanu ~ "continuous" ,
+      mean_time_roanu ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed at least zero union roanu (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/baseline_by_aff_at_least_zero_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+
+# high affected roanu
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, high_exposed_roanu,mean_speed_roanu,mean_time_roanu,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  high_exposed_roanu = factor(high_exposed_roanu, levels = c("0", "1")),
+  mean_speed_roanu = as.numeric(mean_speed_roanu),
+  mean_time_roanu = as.numeric(mean_time_roanu),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_roanu, 
+     label = list(
+       mean_speed_roanu ~ "Mean wind speed (in m/s) roanu",
+       mean_time_roanu ~ "Mean wind duration (in hours) roanu",
+       
+    
+      # affected_roanu ~ "Affected upazila roanu (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_roanu ~ "continuous" ,
+      mean_time_roanu ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed union roanu (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/baseline_by_highly_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+```
+
+
+
+#### Mora
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+# Affected mora
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, affected_mora,mean_speed_mora,mean_time_mora,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  affected_mora = factor(affected_mora, levels = c("0", "1")),
+  mean_speed_mora = as.numeric(mean_speed_mora),
+  mean_time_mora = as.numeric(mean_time_mora),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = affected_mora, 
+     label = list(
+       mean_speed_mora ~ "Mean wind speed (in m/s) mora",
+       mean_time_mora ~ "Mean wind duration (in hours) mora",
+    
+      # affected_mora ~ "Affected upazila mora (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_mora ~ "continuous" ,
+      mean_time_mora ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Affected union mora (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/mora/baseline_by_aff_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+# At least zero
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id,exposed_at_least_zero_mora,mean_speed_mora,mean_time_mora,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  exposed_at_least_zero_mora = factor(exposed_at_least_zero_mora, levels = c("0", "1")),
+  mean_speed_mora = as.numeric(mean_speed_mora),
+  mean_time_mora = as.numeric(mean_time_mora),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = exposed_at_least_zero_mora, 
+     label = list(
+       mean_speed_mora ~ "Mean wind speed (in m/s) mora",
+       mean_time_mora ~ "Mean wind duration (in hours) mora",
+    
+      # affected_mora ~ "Affected upazila mora (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_mora ~ "continuous" ,
+      mean_time_mora ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Exposed at least zero union mora (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/mora/baseline_by_aff_at_least_zero_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+
+# high affected mora
+df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+    filter(hh_split_r2_r3=="0") %>% 
+  # Selecting relevant variables
+   select(hh_id, high_exposed_mora,mean_speed_mora,mean_time_mora,hh_size,hh_head_religion,hh_ethnic_group) %>% 
+  left_join(
+    df_r1_anthr1 %>% 
+      filter(relation_hhh=="primary respondent") %>% 
+      select( hh_id, hhm_sex, hhm_age, marital_status_hhm, literacy_hhm, education_high, hhm_status, nbr_female, nbr_underfive, nbr_yngchldrn_5_10, nbr_teenager_10_20, nbr_adults_20_65, nbr_female_underfive, nbr_female_yngchldrn_5_10, nbr_female_teenager_10_20, nbr_female_adults_20_65)) %>% 
+mutate(
+  
+  high_exposed_mora = factor(high_exposed_mora, levels = c("0", "1")),
+  mean_speed_mora = as.numeric(mean_speed_mora),
+  mean_time_mora = as.numeric(mean_time_mora),
+  
+         nbr_female = as.numeric(nbr_female),
+         nbr_underfive = as.numeric(nbr_underfive),
+         nbr_yngchldrn_5_10 = as.numeric(nbr_yngchldrn_5_10),
+         nbr_teenager_10_20 = as.numeric(nbr_teenager_10_20),
+         nbr_adults_20_65 = as.numeric(nbr_adults_20_65),
+         nbr_female_underfive = as.numeric(nbr_female_underfive),
+         nbr_female_yngchldrn_5_10 = as.numeric(nbr_female_yngchldrn_5_10),
+         nbr_female_teenager_10_20 = as.numeric(nbr_female_teenager_10_20),
+         nbr_female_adults_20_65 = as.numeric(nbr_female_adults_20_65)) %>%
+  select(-c(hh_id)) %>% 
+      # Generate a summary table using "tbl_summary" for the specified columns
+    tbl_summary(
+    by = high_exposed_mora, 
+     label = list(
+       mean_speed_mora ~ "Mean wind speed (in m/s) mora",
+       mean_time_mora ~ "Mean wind duration (in hours) mora",
+       
+    
+      # affected_mora ~ "Affected upazila mora (Yes=1, No=0)",
+      
+       hh_size ~ "Hh. size",
+       hh_head_religion ~ "Hh. head rlgn",
+       hh_ethnic_group  ~ "Hh. head ethnc",
+       
+       hhm_sex ~ "Hh. head sex", 
+       hhm_age ~ "Hh. head age", 
+       marital_status_hhm ~ "Hh. head mrtl stts", 
+       literacy_hhm ~ "Hh. head ltrc" , 
+       education_high ~ "Hh. head edctn", 
+       hhm_status ~ "Hh. head stts",
+       nbr_female ~ "Hh. nbr fml" , 
+       nbr_underfive ~ "Hh. nbr undrfv" , 
+       nbr_yngchldrn_5_10 ~ "Hh. nbr yng child (5-10)" , 
+       nbr_teenager_10_20 ~ "Hh. nbr tngr (10-20)", 
+       nbr_adults_20_65 ~ "Hh. nbr adlts (20-65)", 
+       nbr_female_underfive ~ "Hh. nbr female undrfv", 
+       nbr_female_yngchldrn_5_10 ~ "Hh. fml yng child (5-10)", 
+       nbr_female_teenager_10_20 ~ "Hh. fml tngr (10-20)",
+       nbr_female_adults_20_65 ~ "Hh. fml adlts (20-65)"),
+    
+    type = list(
+      mean_speed_mora ~ "continuous" ,
+      mean_time_mora ~ "continuous" ,
+
+       nbr_female ~ "continuous" , 
+       nbr_underfive ~ "continuous" , 
+       nbr_yngchldrn_5_10 ~ "continuous" , 
+       nbr_teenager_10_20 ~ "continuous", 
+       nbr_adults_20_65 ~ "continuous", 
+       nbr_female_underfive ~ "continuous", 
+       nbr_female_yngchldrn_5_10 ~ "continuous", 
+       nbr_female_teenager_10_20 ~ "continuous",
+       nbr_female_adults_20_65 ~ "continuous"
+      ),
+    statistic = list(
+      all_categorical() ~ "{n} ({p}%)",
+      all_continuous() ~ "{mean} ({sd})"
+    ),
+    missing_text = "(Missing)",
+    digits = list(all_continuous() ~ c(2,2)),
+    missing = "ifany"
+  ) %>%
+       add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
+  modify_header(label ~ "Highly exposed union mora (Yes=1, No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/mora/baseline_by_highly_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
+```
 
 ### Attrition
 
@@ -632,7 +1574,25 @@ df_r1_hh %>%
   ) %>%
        add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
   modify_header(label ~ "Interview status in R3") %>% 
-  add_overall(last=TRUE)
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/attrition_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
 ```
 
 This figure summarize the idea of the previous table.
@@ -685,9 +1645,119 @@ all_comb <- df_r1_hh %>%
 panelView::panelview(1 ~ treat_group_komen_post + hh_size, gridOff = TRUE, by.timing = TRUE,
           data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE,
           xlab = "Survey year", ylab = "Nbr hh.", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+
+ggsave("output/img/stat desc/komen/attrition_panelview_komen.jpeg", width = 18, height = 7, units = "cm")
+
 ```
 
 
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  select(hh_id) %>% 
+  pull()
+
+lst_affected_roanu <- df_r1_hh %>% 
+  filter(affected_roanu=="1") %>%  
+  select(hh_id) %>% 
+  pull()
+
+all_comb <- df_r1_hh %>%
+            select(hh_id,survey_round) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            plyr::rbind.fill(df_r2_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            plyr::rbind.fill(df_r3_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            tidyr::expand(hh_id,survey_round)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_r1_hh %>%
+          select(hh_id,survey_round, hh_size, affected_roanu,treat_group_roanu, survey_year) %>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_roanu_post=0) %>% 
+          plyr::rbind.fill(
+            df_r2_hh %>%
+              select(hh_id,survey_round, hh_size, affected_roanu,treat_group_roanu, survey_year)%>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_roanu_post=0))%>% 
+          plyr::rbind.fill(
+            df_r3_hh %>%
+              select(hh_id,survey_round, hh_size, affected_roanu,treat_group_roanu, survey_year)%>% 
+              filter(hh_id %in% lst_menage) %>% 
+             #mutate(treat_group_roanu_post=treat_group_roanu))%>%
+              mutate(treat_group_roanu_post=treat_group_roanu))%>% 
+              #mutate(treat_group_roanu_post=ifelse(affected_roanu==treat_group_roanu))%>% 
+  dplyr::full_join(all_comb, by=c("survey_round", "hh_id")) %>% 
+  mutate(
+    survey_year = ifelse(survey_round==1,2011,
+                              ifelse(survey_round==2,2015,
+                                     ifelse(survey_round==3,2018,NA))),
+    treat_group_roanu = ifelse(is.na(treat_group_roanu) & (hh_id %in% lst_affected_roanu) & (survey_round==3),1,ifelse(is.na(treat_group_roanu) & !(hh_id %in% lst_affected_roanu) & (survey_round==3),0,treat_group_roanu)))
+
+
+# PanelView graph
+panelView::panelview(1 ~ treat_group_roanu + hh_size + affected_roanu, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE, xlab = "Survey year", ylab = "Nbr hh.", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "" , legend.labs = c("Control hh.", "Treated hh. (before TC)", "Treated hh. (after TC)"))
+
+ggsave("output/img/stat desc/roanu/attrition_panelview_roanu.jpeg", width = 18, height = 7, units = "cm")
+
+```
+
+
+```{r, results='hold', include = TRUE, warning=FALSE, echo = FALSE}
+
+lst_menage <- df_r1_hh %>% 
+  mutate(hh_split_r2_r3 = ifelse(hh_split_r3=="1"| hh_split_r2=="1","1","0")) %>% 
+  filter(hh_split_r2_r3=="0") %>%  
+  select(hh_id) %>% 
+  pull()
+
+all_comb <- df_r1_hh %>%
+            select(hh_id,survey_round) %>% 
+            filter(hh_id %in% lst_menage) %>% 
+            plyr::rbind.fill(df_r2_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            plyr::rbind.fill(df_r3_hh %>%
+            select(hh_id,survey_round)%>% 
+            filter(hh_id %in% lst_menage)) %>% 
+            tidyr::expand(hh_id,survey_round)
+
+# Use with `right_join()` to fill in missing rows (in data)
+all_comb <- df_r1_hh %>%
+          select(hh_id,survey_round, hh_size, affected_mora,treat_group_mora, survey_year) %>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_mora_post=0) %>% 
+          plyr::rbind.fill(
+            df_r2_hh %>%
+              select(hh_id,survey_round, hh_size, affected_mora,treat_group_mora, survey_year)%>% 
+          filter(hh_id %in% lst_menage)%>% 
+              mutate(treat_group_mora_post=0))%>% 
+          plyr::rbind.fill(
+            df_r3_hh %>%
+              select(hh_id,survey_round, hh_size, affected_mora,treat_group_mora, survey_year)%>% 
+              filter(hh_id %in% lst_menage) %>% 
+              mutate(treat_group_mora_post=treat_group_mora))%>% 
+  dplyr::right_join(all_comb, by=c("survey_round", "hh_id")) %>% 
+  mutate(
+    survey_year = ifelse(survey_round==1,2011,
+                              ifelse(survey_round==2,2015,
+                                     ifelse(survey_round==3,2018,NA))))
+
+
+# PanelView graph
+panelView::panelview(1 ~ treat_group_mora_post + hh_size, gridOff = TRUE, by.timing = TRUE,
+          data = all_comb, index = c("hh_id","survey_year"), display.all = TRUE,
+          xlab = "Survey year", ylab = "Nbr hh.", pre.post = TRUE, by.unit=TRUE,  background = "white",cex.main = 20, cex.axis= 8, cex.lab = 12, cex.legend = 12, collapse.history = "TRUE", main = "")
+
+ggsave("output/img/stat desc/mora/attrition_panelview_mora.jpeg", width = 18, height = 7, units = "cm")
+
+```
 
 
 The attrited households are, on average:
@@ -966,9 +2036,9 @@ re5 <- felm(attrition ~ mean_speed_roanu + hhm_sex + hhm_age+ hh_size +  marital
 
 
 
-stargazer(re0, re1, re2, re3, re4, re5, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
+stargazer(re0, re1, re2, re3, re4, re5, type = "html", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
 se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
-keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), notes = "Author's owns computations")
+keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_roanu", "mean_time_roanu", "affected_roanu","high_exposed_roanu","exposed_at_least_zero_roanu","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), out = paste0("output/table/roanu/attrition_reg_baseline_roanu.html", sep = ""))
 
 
 
@@ -994,7 +2064,7 @@ re4 <- felm(attrition ~ mean_speed_roanu + mean_speed_roanu:hhm_sex + mean_speed
 stargazer(re0, re1, re2, re3, re4, type = "text", title = "Attrited hh. after the disaster characteristics at baseline", digits=2, float = TRUE, se.position = "below", omit.stat=c("LL","ser","f","adj.rsq","res.dev"), dep.var.labels.include = TRUE,font.size="small",
 se.position = "below",notes.align = "l",table.placement = "H",header = F, column.labels = c("","Exposed UP.", "At least One", "Highly exposed", "Speed","Duration"),
 # keep = c("hhm_sex" , "hhm_age", "hh_size" ,  "marital_status_hhm", "literacy_hhm", "education_high","hh_head_religion","hh_ethnic_group", "mean_speed_mora", "mean_time_mora", "affected_mora","high_exposed_mora","exposed_at_least_zero_mora","nbr_female", "nbr_underfive", "nbr_yngchldrn_5_10", "nbr_teenager_10_20", "nbr_adults_20_65", "nbr_female_underfive", "nbr_female_yngchldrn_5_10", "nbr_female_teenager_10_20", "nbr_female_adults_20_65"), 
-notes = "Author's owns computations")
+out = paste0("output/table/roanu/attrition_reg_cross_roanu.html", sep = ""))
 
 
 
@@ -2581,8 +3651,27 @@ df_global_corrected %>%
     missing = "ifany"
   ) %>%
        add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
-  modify_header(label ~ "Affected Upazila") %>% 
-  add_overall(last=TRUE)
+  modify_header(label ~ "Affected Union (Yes=1,No=0)") %>% 
+  add_overall(last=TRUE)  %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/child_int_affected_roanu_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
+
 
 
 # Table 2
@@ -2621,8 +3710,26 @@ df_global_corrected %>%
     missing = "ifany"
   ) %>%
        add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
-  modify_header(label ~ "At least one") %>% 
-  add_overall(last=TRUE)
+  modify_header(label ~ "At least one (Yes=1,No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/child_int_at_least_one_roanu_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
 
 
 # Table 3
@@ -2661,8 +3768,26 @@ df_global_corrected %>%
     missing = "ifany"
   ) %>%
        add_p(test=list(all_continuous() ~ "t.test", all_categorical() ~ "fisher.test.simulate.p.values")) %>% 
-  modify_header(label ~ "Highly exposed") %>% 
-  add_overall(last=TRUE)
+  modify_header(label ~ "Highly exposed (Yes=1,No=0)") %>% 
+  add_overall(last=TRUE) %>% 
+  as_flex_table() %>% 
+flextable::save_as_docx(
+  path = "output/table/roanu/child_int_highly_exposed_roanu_stat_desc.docx", 
+  prop_section = officer::prop_section(
+    page_size = officer::page_size(
+      orient = "landscape", # Keep the orientation as landscape 
+      width = 10,          # Width aligned to fit a PowerPoint slide
+      height = 5.63        # Height for 16:9 aspect ratio
+    ),
+    type = "continuous", 
+    page_margins = officer::page_mar(
+      top = 0.5, 
+      bottom = 0.5, 
+      left = 0.5, 
+      right = 0.5
+    )
+  )
+)
 
 
 ```
@@ -4196,7 +5321,7 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/outcome_mean_affected_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_affected_roanu.jpeg", width = 18, height = 7, units = "cm")
 
 
 ## At least affected   
@@ -4236,7 +5361,7 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/outcome_mean_exposed_at_least_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_exposed_at_least_roanu.jpeg", width = 18, height = 7, units = "cm")
     
 ## highly exposed   
 df_global_corrected %>% 
@@ -4275,7 +5400,7 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/outcome_mean_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/outcome_mean_high_exposed_roanu.jpeg", width = 18, height = 7, units = "cm")
     
 
 ```
@@ -4523,7 +5648,7 @@ df_global_corrected %>%
     ) +
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_affected_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_affected_roanu_gaps.jpeg", width = 18, height = 7, units = "cm")
 
       
 # exposed_at_least_zero_roanu      
@@ -4637,7 +5762,7 @@ df_global_corrected %>%
     ) +
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_exposed_at_least_zero_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_exposed_at_least_zero_roanu_gaps.jpeg", width = 18, height = 14, units = "cm")
 
       
 
@@ -4752,7 +5877,7 @@ df_global_corrected %>%
     ) +
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_high_exposed_roanu_gaps.pdf", width = 18, height = 7, units = "cm")
+      ggsave("output/img/stat desc/roanu/outcome_mean_bysex_high_exposed_roanu_gaps.jpeg", width = 18, height = 14, units = "cm")
 ```
 
 
@@ -4895,7 +6020,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/by_cohort_affected roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/by_cohort_affected roanu.jpeg", width = 18, height = 14, units = "cm")
     
     
     
@@ -5034,7 +6159,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/by_cohort_exposed_at_least_zero_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/by_cohort_exposed_at_least_zero_roanu.jpeg", width = 18, height = 14, units = "cm")
     
     
     
@@ -5174,7 +6299,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/roanu/by_cohort_high_exposed_roanu.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/roanu/by_cohort_high_exposed_roanu.jpeg", width = 18, height = 14, units = "cm")
 ```
 
 
@@ -5299,7 +6424,7 @@ df_global_corrected %>%
     ) + 
     theme_light(base_size = 8)+
     theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/mora/outcome_mean_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/outcome_mean_high_exposed_mora.pdf", width = 18, height = 14, units = "cm")
     
 ```
 ##### Baseline by sex
@@ -5915,7 +7040,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/mora/by_cohort_affected mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/by_cohort_affected mora.pdf", width = 18, height = 14, units = "cm")
     
     
     
@@ -6054,7 +7179,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/mora/by_cohort_exposed_at_least_zero_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/by_cohort_exposed_at_least_zero_mora.pdf", width = 18, height = 14, units = "cm")
     
     
     
@@ -6194,7 +7319,7 @@ plot_df %>%
       ) +
       theme_light(base_size = 8)+
       theme(legend.position = 'bottom',text = element_text(size=8), legend.direction = "horizontal")
-    ggsave("output/img/stat desc/mora/by_cohort_high_exposed_mora.pdf", width = 18, height = 7, units = "cm")
+    ggsave("output/img/stat desc/mora/by_cohort_high_exposed_mora.pdf", width = 18, height = 14, units = "cm")
 ```
 
 
